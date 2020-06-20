@@ -39,7 +39,7 @@ cdef extern from "libcpp_test.hpp":
         #  AbstractBaseClass
         # ABS_Impl2(ABS_Impl2)
         ABS_Impl2() # wrap-pass-constructor
-        ABS_Impl2(int i)
+        ABS_Impl2(int i) 
 
 
     cdef cppclass LibCppTest:
@@ -100,7 +100,7 @@ cdef extern from "libcpp_test.hpp":
         void  process21(libcpp_map[int, float] & in_, libcpp_map[int,int] & arg2)
         void  process211(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[int] ] & arg2)
         void  process212(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[int] ] ] & arg2)
-        void  process213(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[Int] ] ] & arg2)
+        #void  process213(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[Int] ] ] & arg2)
         void  process214(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_pair[int, int] ] ] & arg2)
         void  process22(libcpp_set[int] &, libcpp_set[float] &)
         void  process23(libcpp_vector[int] &, libcpp_vector[float] &)
