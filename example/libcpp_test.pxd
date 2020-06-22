@@ -39,7 +39,7 @@ cdef extern from "libcpp_test.hpp":
         #  AbstractBaseClass
         # ABS_Impl2(ABS_Impl2)
         ABS_Impl2() # wrap-pass-constructor
-        ABS_Impl2(int i) # wrap-ignore
+        ABS_Impl2(int i)
 
 
     cdef cppclass LibCppTest:

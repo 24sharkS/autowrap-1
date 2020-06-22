@@ -76,9 +76,27 @@ cdef class ABS_Impl2:
          self.inst.reset()
 
     
-    def __init__(self, *args, **kwargs):
-        if not kwargs.get("__createUnsafeObject__") is True:
-            raise Exception("Cannot call this constructor")
+    def _init_0(self):
+        """Cython signature: void ABS_Impl2()"""
+        pass
+    
+    def _init_1(self,  i ):
+        """Cython signature: void ABS_Impl2(int i)"""
+        assert isinstance(i, (int, long)), 'arg i wrong type'
+    
+        self.inst = shared_ptr[_ABS_Impl2](new _ABS_Impl2((<int>i)))
+    
+    def __init__(self, *args , **kwargs):
+        """
+          - Cython signature: void ABS_Impl2()
+          - Cython signature: void ABS_Impl2(int i)
+"""
+        if kwargs.get("__createUnsafeObject__") is True:
+             self._init_0(*args)
+        elif (len(args)==1) and (isinstance(args[0], (int, long))):
+             self._init_1(*args)
+        else:
+               raise Exception('can not handle type of %s' % (args,))
     
     def get(self):
         """Cython signature: int get()"""
@@ -711,7 +729,7 @@ cdef class LibCppTest:
         in_.update(replace)
         del v0
     
-    def process22(self, set in_0 , set in_1):
+    def process22(self, set in_0 , set in_1 ):
         """Cython signature: void process22(libcpp_set[int] &, libcpp_set[float] &)"""
         assert isinstance(in_0, set) and all(isinstance(li, (int, long)) for li in in_0), 'arg in_0 wrong type'
         assert isinstance(in_1, set) and all(isinstance(li, float) for li in in_1), 'arg in_1 wrong type'
