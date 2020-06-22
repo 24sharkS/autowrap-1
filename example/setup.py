@@ -15,5 +15,5 @@ setup(cmdclass={'build_ext':build_ext},
       name="py_libcpp_test",
       version="0.0.1",
       ext_modules = [ext]
-     )
+)
 

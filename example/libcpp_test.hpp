@@ -100,6 +100,7 @@ class LibCppTest {
             in.second = 11;
             return in;
         };
+        
         std::pair<LibCppTest, int> process3(std::pair<LibCppTest, int> & in)
         {
             in.second = 42;
