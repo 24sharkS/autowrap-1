@@ -79,8 +79,11 @@ def _main(argv):
     out = options.out
     __, out_ext = os.path.splitext(out)
 
-    if out_ext != ".pyx":
-        parser.exit(1, "\nout file has wrong extension: '.pyx' required\n")
+    #if out_ext != ".pyx":
+    #    parser.exit(1, "\nout file has wrong extension: '.pyx' required\n")
+
+    if out_ext not in (".r",".R"):
+        parser.exit(1,"\nout file has wrong extension: '.R/r' required\n")
 
     def collect(from_, extension):
         collected = []

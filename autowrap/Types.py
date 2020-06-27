@@ -61,6 +61,7 @@ class CppType(object):
             self.set_is_const_rec()
             self.topmost_is_const = True
 
+    #recursive
     def set_is_const_rec(self):
         self.topmost_is_const = True
         if self.template_args is None:
@@ -68,6 +69,7 @@ class CppType(object):
         for t in self.template_args:
             t.set_is_const_rec()
 
+    # recursive
     def set_is_ref_rec(self):
         self.topmost_is_ref = True
         if self.template_args is None:
@@ -81,6 +83,7 @@ class CppType(object):
         copied.check_for_recursion()
         return copied
 
+    # recursive
     def _transform(self, typemap, indent):
 
         aliased_t = typemap.get(self.base_type)
@@ -97,6 +100,7 @@ class CppType(object):
         for t in self.template_args or []:
             t._transform(typemap, indent + 1)
 
+    # returns object with removed flags.
     def _rm_flags(self):
         rv = self.copy()
         rv.is_ptr = rv.is_ref = False

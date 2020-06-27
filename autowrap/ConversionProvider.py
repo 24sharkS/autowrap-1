@@ -264,16 +264,19 @@ class IntegerConverter(TypeConverterBase):
         return ""
 
     def type_check_expression(self, cpp_type, argument_var):
-        return "isinstance(%s, (int, long))" % (argument_var,)
+        return "stopifnot(is_scalar_integer(%s))" % (argument_var,)
+        #return "isinstance(%s, (int, long))" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
         code = ""
-        call_as = "(<%s>%s)" % (cpp_type, argument_var)
+        call_as = ""
+        #call_as = "(<%s>%s)" % (cpp_type, argument_var)
         cleanup = ""
         return code, call_as, cleanup
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
-        return "%s = <%s>%s" % (output_py_var, cpp_type, input_cpp_var)
+        return None
+        #return "%s = <%s>%s" % (output_py_var, cpp_type, input_cpp_var)
 
 
 # TODO: common base class for float, int, str conversion
@@ -289,17 +292,22 @@ class DoubleConverter(TypeConverterBase):
     def matching_python_type(self, cpp_type):
         return "double"
 
+    # def type_check_expression(self, cpp_type, argument_var):
+    #     return "isinstance(%s, float)" % (argument_var,)
+
     def type_check_expression(self, cpp_type, argument_var):
-        return "isinstance(%s, float)" % (argument_var,)
+        return "stopifnot(is_scalar_double(%s))" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
         code = ""
-        call_as = "(<%s>%s)" % (cpp_type, argument_var)
+        call_as = ""
+        #call_as = "(<%s>%s)" % (cpp_type, argument_var)
         cleanup = ""
         return code, call_as, cleanup
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
-        return "%s = <%s>%s" % (output_py_var, cpp_type, input_cpp_var)
+        return None
+        #return "%s = <%s>%s" % (output_py_var, cpp_type, input_cpp_var)
 
 
 class FloatConverter(TypeConverterBase):
@@ -311,19 +319,26 @@ class FloatConverter(TypeConverterBase):
         return not cpp_type.is_ptr
 
     def matching_python_type(self, cpp_type):
-        return "float"
+        #return "float"
+        return "double"
+
+    # def type_check_expression(self, cpp_type, argument_var):
+    #     return "isinstance(%s, float)" % (argument_var,)
 
     def type_check_expression(self, cpp_type, argument_var):
-        return "isinstance(%s, float)" % (argument_var,)
+        return "stopifnot(is_scalar_double(%s))" % (argument_var,)
+        #return "isinstance(%s, float)" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
         code = ""
-        call_as = "(<%s>%s)" % (cpp_type, argument_var)
+        call_as = ""
+        #call_as = "(<%s>%s)" % (cpp_type, argument_var)
         cleanup = ""
         return code, call_as, cleanup
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
-        return "%s = <%s>%s" % (output_py_var, cpp_type, input_cpp_var)
+        return None
+        #return "%s = <%s>%s" % (output_py_var, cpp_type, input_cpp_var)
 
 
 class EnumConverter(TypeConverterBase):
@@ -342,16 +357,19 @@ class EnumConverter(TypeConverterBase):
 
     def type_check_expression(self, cpp_type, argument_var):
         values = ", ".join(str(v) for (__, v) in self.enum.items)
-        return "%s in [%s]" % (argument_var, values)
+        return "{} %in% c({})".format(argument_var, values)
+        #return "%s in [%s]" % (argument_var, values)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
         code = ""
-        call_as = "(<_%s>%s)" % (cpp_type.base_type, argument_var)
+        call_as = ""
+        # call_as = "(<_%s>%s)" % (cpp_type.base_type, argument_var)
         cleanup = ""
         return code, call_as, cleanup
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
-        return "%s = <int>%s" % (output_py_var, input_cpp_var)
+        return None
+        #return "%s = <int>%s" % (output_py_var, input_cpp_var)
 
 
 class CharConverter(TypeConverterBase):
@@ -362,23 +380,34 @@ class CharConverter(TypeConverterBase):
     def matches(self, cpp_type):
         return not cpp_type.is_ptr
 
-    def matching_python_type(self, cpp_type):
+    def matching_r_type(self, cpp_type):
         return "bytes"
 
-    def type_check_expression(self, cpp_type, argument_var):
-        return "isinstance(%s, bytes) and len(%s) == 1" % (argument_var, argument_var,)
+    # def matching_python_type(self, cpp_type):
+    #     return "bytes"
 
+    def type_check_expression(self, cpp_type, argument_var):
+        return "stopifnot(is_scalar_character(%s))" % (argument_var,)
+        #return "isinstance(%s, bytes) and len(%s) == 1" % (argument_var, argument_var,)
+
+    # not final
     def input_conversion(self, cpp_type, argument_var, arg_num):
-        code = ""
-        call_as = "(<char>((%s)[0]))" % argument_var
-        cleanup = ""
+        code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
+        call_as = "%s" % argument_var
+        cleanup = "py_run_string(\"del %s\")" % argument_var
+        #code = ""
+        #call_as = "(<char>((%s)[0]))" % argument_var
+        #cleanup = ""
         return code, call_as, cleanup
 
     def call_method(self, res_type, cy_call_str):
         return "cdef char  _r = %s" % cy_call_str
 
-    def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
-        return "%s = chr(<char>(%s))" % (output_py_var, input_cpp_var)
+    def output_conversion(self, cpp_type, input_py_var, output_r_var):
+        return "%s = as.character(%s)" % (output_r_var, input_py_var)
+
+    # def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
+    #     return "%s = chr(<char>(%s))" % (output_py_var, input_cpp_var)
 
 
 class ConstCharPtrConverter(TypeConverterBase):
@@ -389,23 +418,33 @@ class ConstCharPtrConverter(TypeConverterBase):
     def matches(self, cpp_type):
         return cpp_type.is_ptr
 
-    def matching_python_type(self, cpp_type):
-        return "bytes"
+    def matching_r_type(self, cpp_type):
+        return "character"
+
+    # def matching_python_type(self, cpp_type):
+    #     return "bytes"
 
     def type_check_expression(self, cpp_type, argument_var):
-        return "isinstance(%s, bytes)" % (argument_var,)
+        return "stopifnot(is_scalar_character(%s))" % (argument_var,)
+        #return "isinstance(%s, bytes)" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
-        code = Code().add("cdef const_char * input_%s = <const_char *> %s" % (argument_var, argument_var))
-        call_as = "input_%s" % argument_var
-        cleanup = ""
+        code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
+        call_as = "%s" % argument_var
+        cleanup = "py_run_string(\"del %s\")" % argument_var
+        # code = Code().add("cdef const_char * input_%s = <const_char *> %s" % (argument_var, argument_var))
+        # call_as = "input_%s" % argument_var
+        # cleanup = ""
         return code, call_as, cleanup
 
     def call_method(self, res_type, cy_call_str):
         return "cdef const_char  * _r = _cast_const_away(%s)" % cy_call_str
 
-    def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
-        return "%s = <const_char *>(%s)" % (output_py_var, input_cpp_var)
+    def output_conversion(self, cpp_type, input_py_var, output_r_var):
+        return "%s = as.character(%s)" % (output_r_var, input_py_var)
+
+    # def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
+    #     return "%s = <const_char *>(%s)" % (output_py_var, input_cpp_var)
 
 
 class CharPtrConverter(TypeConverterBase):
@@ -416,23 +455,33 @@ class CharPtrConverter(TypeConverterBase):
     def matches(self, cpp_type):
         return cpp_type.is_ptr
 
-    def matching_python_type(self, cpp_type):
-        return "bytes"
+    def matching_r_type(self, cpp_type):
+        return "character"
+
+    # def matching_python_type(self, cpp_type):
+    #     return "bytes"
 
     def type_check_expression(self, cpp_type, argument_var):
-        return "isinstance(%s, bytes)" % (argument_var,)
+        return "stopifnot(is_scalar_character(%s))" % (argument_var,)
+        #return "isinstance(%s, bytes)" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
-        code = ""
-        call_as = "(<char *>%s)" % argument_var
-        cleanup = ""
+        code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
+        call_as = "%s" % argument_var
+        cleanup = "py_run_string(\"del %s\")" % argument_var
+        # code = ""
+        # call_as = "(<char *>%s)" % argument_var
+        # cleanup = ""
         return code, call_as, cleanup
 
     def call_method(self, res_type, cy_call_str):
         return "cdef char  * _r = _cast_const_away(%s)" % cy_call_str
 
-    def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
-        return "%s = <char *>(%s)" % (output_py_var, input_cpp_var)
+    def output_conversion(self, cpp_type, input_py_var, output_r_var):
+        return "%s = as.character(%s)" % (output_r_var, input_py_var)
+
+    # def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
+    #     return "%s = <char *>(%s)" % (output_py_var, input_cpp_var)
 
 
 class TypeToWrapConverter(TypeConverterBase):
@@ -449,17 +498,19 @@ class TypeToWrapConverter(TypeConverterBase):
     def matching_python_type(self, cpp_type):
         return cpp_type.base_type
 
+    #not final
     def type_check_expression(self, cpp_type, argument_var):
-        return "isinstance(%s, %s)" % (argument_var, cpp_type.base_type)
+        return "stopifnot(all(class({}) == c(\"R6\",\"{}\")))".format(argument_var,cpp_type)
+        #return "isinstance(%s, %s)" % (argument_var, cpp_type.base_type)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
         code = ""
-
+        call_as = "(%s\$get_py_object())" % (argument_var, )
         cy_type = self.converters.cython_type(cpp_type)
-        if cpp_type.is_ptr:
-            call_as = "(%s.inst.get())" % (argument_var, )
-        else:
-            call_as = "(deref(%s.inst.get()))" % (argument_var, )
+        # if cpp_type.is_ptr:
+        #     call_as = "(%s.inst.get())" % (argument_var, )
+        # else:
+        #     call_as = "(deref(%s.inst.get()))" % (argument_var, )
 
         cleanup = ""
         return code, call_as, cleanup

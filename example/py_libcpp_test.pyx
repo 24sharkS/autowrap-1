@@ -22,7 +22,7 @@ from libcpp_test cimport Int as _Int
 from libcpp_test cimport LibCppTest as _LibCppTest
 
 cdef extern from "autowrap_tools.hpp":
-    char * _cast_const_away(char *) 
+    char * _cast_const_away(char *)
 
 cdef class ABS_Impl1:
     """
@@ -158,7 +158,7 @@ cdef class Int:
         elif (len(args)==1) and (isinstance(args[0], Int)):
              self._init_1(*args)
         else:
-               raise Exception('can not handle type of %s' % (args,)) 
+               raise Exception('can not handle type of %s' % (args,))
 
 cdef class LibCppTest:
     """
