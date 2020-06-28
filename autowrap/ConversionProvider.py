@@ -1205,8 +1205,11 @@ class StdVectorConverter(TypeConverterBase):
         inner_check = inner_conv.type_check_expression(tt, arg_var_next)
 
         return Code().add("""
-          |isinstance($arg_var, list) and all($inner_check for $arg_var_next in $arg_var)
+          |is_list($arg_var) && all(sapply($arg_var,function($arg_var_next) $inner_check))
           """, locals()).render()
+        # return Code().add("""
+        #   |isinstance($arg_var, list) and all($inner_check for $arg_var_next in $arg_var)
+        #   """, locals()).render()
 
     def _prepare_nonrecursive_cleanup(self, cpp_type, bottommost_code, it_prev, temp_var, recursion_cnt, *a, **kw):
         # B) Prepare the post-call
@@ -1217,7 +1220,9 @@ class StdVectorConverter(TypeConverterBase):
             if recursion_cnt > 0:
                 # If we are inside a recursion, we have to dereference the
                 # _previous_ iterator.
-                a[0]["temp_var_used"] = "deref(%s)" % it_prev
+                # not sure
+                a[0]["temp_var_used"] = "$temp_var[[%s]]" % it_prev
+                #a[0]["temp_var_used"] = "deref(%s)" % it_prev
                 tp_add = "$it = $temp_var_used.begin()"
             else:
                 tp_add = "cdef libcpp_vector[$inner].iterator $it = $temp_var.begin()"
@@ -1225,18 +1230,32 @@ class StdVectorConverter(TypeConverterBase):
                 |$argument_var[:] = replace_$recursion_cnt
                 |del $temp_var
                 """
+                # tp_add = "cdef libcpp_vector[$inner].iterator $it = $temp_var.begin()"
+                # btm_add = """
+                # |$argument_var[:] = replace_$recursion_cnt
+                # |del $temp_var
+                # """
                 a[0]["temp_var_used"] = temp_var
 
             # Add cleanup code (loop through the temporary vector C++ and
             # add items to the python replace_n list).
             cleanup_code = Code().add(tp_add + """
                 |replace_$recursion_cnt = []
-                |while $it != $temp_var_used.end():
+                |for($it in sequence(length($temp_var_used)))
                 |    $item = $cy_tt.__new__($cy_tt)
                 |    $item.inst = $instantiation
                 |    replace_$recursion_cnt.append($item)
                 |    inc($it)
                 """ + btm_add, *a, **kw)
+
+            # cleanup_code = Code().add(tp_add + """
+            #     |replace_$recursion_cnt = []
+            #     |while $it != $temp_var_used.end():
+            #     |    $item = $cy_tt.__new__($cy_tt)
+            #     |    $item.inst = $instantiation
+            #     |    replace_$recursion_cnt.append($item)
+            #     |    inc($it)
+            #     """ + btm_add, *a, **kw)
         else:
             if recursion_cnt == 0:
                 if cpp_type.is_ptr:
@@ -1653,16 +1672,19 @@ class StdStringConverter(TypeConverterBase):
         return "bytes"
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
-        code = ""
-        call_as = "(<libcpp_string>%s)" % argument_var
-        cleanup = ""
+        code = "py$argument_var = py_run_string(\"argument_var = bytes(str,'utf-8')\")"
+        call_as = "py$%s" % argument_var
+        cleanup = "py_run_string('del $argument_var;gc.collect()')"
         return code, call_as, cleanup
 
     def type_check_expression(self, cpp_type, argument_var):
-        return "isinstance(%s, bytes)" % argument_var
+        return "is_scalar_character(%s)" % argument_var
+        #return "isinstance(%s, bytes)" % argument_var
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
-        return "%s = <libcpp_string>%s" % (output_py_var, input_cpp_var)
+        # input_cpp_var : input_py_var
+        return "%s = as.character(%s)" % (output_py_var, input_cpp_var)
+        # return "%s = <libcpp_string>%s" % (output_py_var, input_cpp_var)
 
 
 class StdStringUnicodeConverter(StdStringConverter):
@@ -1719,22 +1741,26 @@ class SharedPtrConverter(TypeConverterBase):
         tt, = cpp_type.template_args
         inner = self.converters.cython_type(tt)
         # Cython expects us to get a C++ type (we cannot just stick var.inst into the function)
-        code = Code().add("""
-            |cdef shared_ptr[$inner] input_$argument_var = $argument_var.inst
-            """, locals())
-        call_as = "input_" + argument_var
+        code = ""
+        # code = Code().add("""
+        #     |cdef shared_ptr[$inner] input_$argument_var = $argument_var.inst
+        #     """, locals())
+        call_as = "%s$get_py_object()" % argument_var
+        #call_as = "input_" + argument_var
         cleanup = ""
         # Put the pointer back if we pass by reference
-        if cpp_type.is_ref and not cpp_type.is_const:
-            cleanup = Code().add("""
-                |$argument_var.inst = input_$argument_var
-                """, locals())
-        return code, call_as, cleanup
+        # environments are passed by reference in R
+        # if cpp_type.is_ref and not cpp_type.is_const:
+        #     cleanup = Code().add("""
+        #         |$argument_var.inst = input_$argument_var
+        #         """, locals())
+        # return code, call_as, cleanup
 
     def type_check_expression(self, cpp_type, argument_var):
         # We can just use the Python type of the template argument
         tt, = cpp_type.template_args
-        return "isinstance(%s, %s)" % (argument_var, tt)
+        return "all(class({}) == class('R6',{}))".format(argument_var,tt)
+        # return "isinstance(%s, %s)" % (argument_var, tt)
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
         # L.info("Output conversion for %s" % (cpp_type))
@@ -1744,17 +1770,25 @@ class SharedPtrConverter(TypeConverterBase):
             # If the template argument is constant, we need to have non-const base-types for our code
             inner = self.converters.cython_type(tt).toString(False)
             tt = tt.toString(withConst=False)
+            # output_py_var : output_r_var
+            # input_cpp_var : input_py_var
             code.add("""
-                     |# Const shared_ptr detected, we need to produce a non-const copy to stick into Python object
-                     |cdef $inner * raw_$input_cpp_var = new $inner((deref(<$inner * const>$input_cpp_var.get())))
-                     |cdef $tt py_result
-                     |$output_py_var = $tt.__new__($tt)
-                     |$output_py_var.inst = shared_ptr[$inner](raw_$input_cpp_var) """, locals())
+                     |$output_py_var = $tt@new()@set_py_object($input_cpp_var)
+                     """, locals())
+            # code.add("""
+            #          |# Const shared_ptr detected, we need to produce a non-const copy to stick into Python object
+            #          |cdef $inner * raw_$input_cpp_var = new $inner((deref(<$inner * const>$input_cpp_var.get())))
+            #          |cdef $tt py_result
+            #          |$output_py_var = $tt.__new__($tt)
+            #          |$output_py_var.inst = shared_ptr[$inner](raw_$input_cpp_var) """, locals())
         else:
             code.add("""
-                |cdef $tt py_result
-                |$output_py_var = $tt.__new__($tt)
-                |$output_py_var.inst = $input_cpp_var""", locals())
+                |$output_py_var = $tt@new()@set_py_object($input_cpp_var)
+                """, locals())
+            # code.add("""
+            #     |cdef $tt py_result
+            #     |$output_py_var = $tt.__new__($tt)
+            #     |$output_py_var.inst = $input_cpp_var""", locals())
         return code
 
 special_converters = []
