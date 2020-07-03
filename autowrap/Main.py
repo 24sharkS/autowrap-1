@@ -172,7 +172,7 @@ def register_converters(converters):
         mod.register_converters()
         sys.path.pop(0)
 
-
+# generates the extension module; for e.g. pyd for windows.
 def run_cython(inc_dirs, extra_opts, out):
     from Cython.Compiler.Main import compile, CompilationOptions
 
@@ -207,7 +207,7 @@ def create_wrapper_code(decls, instance_map, addons, converters, out, extra_inc_
     if extra_inc_dirs is not None:
         inc_dirs += extra_inc_dirs
 
-    run_cython(inc_dirs, extra_opts, out)
+    # run_cython(inc_dirs, extra_opts, out)
     return inc_dirs
 
 

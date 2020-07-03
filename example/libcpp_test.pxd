@@ -58,11 +58,11 @@ cdef extern from "libcpp_test.hpp":
         LibCppTest(int ii)
         LibCppTest(LibCppTest) # wrap-ignore
 
-        bool operator==(LibCppTest)
-        bool operator!=(LibCppTest)
+        # bool operator==(LibCppTest)
+        # bool operator!=(LibCppTest)
 
-        libcpp_vector[Int] * integer_vector_ptr
-        Int * integer_ptr
+        # libcpp_vector[Int] * integer_vector_ptr
+        # Int * integer_ptr
 
         int get() #wrap-as:gett wrap-doc:getting access to an integer
 
@@ -98,39 +98,39 @@ cdef extern from "libcpp_test.hpp":
         void  process20(libcpp_map[int, float] & in_)
 
         void  process21(libcpp_map[int, float] & in_, libcpp_map[int,int] & arg2)
-        void  process211(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[int] ] & arg2)
-        void  process212(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[int] ] ] & arg2)
-        void  process213(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[Int] ] ] & arg2)
-        void  process214(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_pair[int, int] ] ] & arg2)
-        void  process22(libcpp_set[int] &, libcpp_set[float] &)
-        void  process23(libcpp_vector[int] &, libcpp_vector[float] &)
-        void  process24(libcpp_pair[int, float] & in_, libcpp_pair[int,int] & arg2)
+        # void  process211(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[int] ] & arg2)
+        # void  process212(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[int] ] ] & arg2)
+        # void  process213(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_vector[Int] ] ] & arg2)
+        # void  process214(libcpp_map[int, float] & in_, libcpp_map[libcpp_string, libcpp_vector[ libcpp_pair[int, int] ] ] & arg2)
+        # void  process22(libcpp_set[int] &, libcpp_set[float] &)
+        # void  process23(libcpp_vector[int] &, libcpp_vector[float] &)
+        # void  process24(libcpp_pair[int, float] & in_, libcpp_pair[int,int] & arg2)
 
-        int   process25(libcpp_vector[Int] in_)
-        int   process26(libcpp_vector[libcpp_vector[Int]] in_)
-        int   process27(libcpp_vector[libcpp_vector[libcpp_vector[Int]]] in_)
-        int   process28(libcpp_vector[libcpp_vector[libcpp_vector[libcpp_vector[Int]]]] in_)
+        # int   process25(libcpp_vector[Int] in_)
+        # int   process26(libcpp_vector[libcpp_vector[Int]] in_)
+        # int   process27(libcpp_vector[libcpp_vector[libcpp_vector[Int]]] in_)
+        # int   process28(libcpp_vector[libcpp_vector[libcpp_vector[libcpp_vector[Int]]]] in_)
 
-        void  process29(libcpp_vector[libcpp_vector[Int]] & in_)
-        void  process30(libcpp_vector[libcpp_vector[libcpp_vector[libcpp_vector[Int]]]] & in_)
+        # void  process29(libcpp_vector[libcpp_vector[Int]] & in_)
+        # void  process30(libcpp_vector[libcpp_vector[libcpp_vector[libcpp_vector[Int]]]] & in_)
 
-        int   process31(libcpp_vector[int] in_)
-        int   process32(libcpp_vector[libcpp_vector[int]] in_)
+        # int   process31(libcpp_vector[int] in_)
+        # int   process32(libcpp_vector[libcpp_vector[int]] in_)
 
-        int   process33(shared_ptr[Int] in_)
-        shared_ptr[Int] process34(shared_ptr[Int] in_)
-        shared_ptr[const Int] process35(shared_ptr[Int] in_)
+        # int   process33(shared_ptr[Int] in_)
+        # shared_ptr[Int] process34(shared_ptr[Int] in_)
+        # shared_ptr[const Int] process35(shared_ptr[Int] in_)
 
-        int   process36(Int* in_)
-        Int*   process37(Int* in_)
+        # int   process36(Int* in_)
+        # Int*   process37(Int* in_)
 
-        libcpp_vector[libcpp_vector[UInt]] process38(int)
+        # libcpp_vector[libcpp_vector[UInt]] process38(int)
 
-        # Wrap a const return value
-        const Int* process39(Int* in_)
+        # # Wrap a const return value
+        # const Int* process39(Int* in_)
 
-        # Wrap an abstract base class
-        # int process40(AbstractBaseClass* in_)
-        int process40(ABS_Impl1* in_)
-        int process40(ABS_Impl2* in_)
+        # # Wrap an abstract base class
+        # # int process40(AbstractBaseClass* in_)
+        # int process40(ABS_Impl1* in_)
+        # int process40(ABS_Impl2* in_)
 

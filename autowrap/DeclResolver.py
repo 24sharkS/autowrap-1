@@ -292,6 +292,7 @@ def _resolve_decls(decls):
     enum_decls = filter_out(PXDParser.EnumDecl)
     class_decls = filter_out(PXDParser.CppClassDecl)
 
+    # add methods from base class to the class_decl
     class_decls = _resolve_all_inheritances(class_decls)
 
     typedef_mapping = _build_typedef_mapping(typedef_decls)

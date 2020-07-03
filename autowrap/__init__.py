@@ -57,12 +57,19 @@ def generate_code(decls, instance_map, target, debug=False, manual_code=None,
     import autowrap.CodeGenerator
     gen = CodeGenerator.CodeGenerator(decls,
                                       instance_map,
-                                      pyx_target_path=target,
+                                      r_target_path=target,
                                       manual_code=manual_code,
-                                      extra_cimports=extra_cimports, 
+                                      extra_cimports=extra_cimports,
                                       allDecl=allDecl)
+    # gen = CodeGenerator.CodeGenerator(decls,
+    #                                   instance_map,
+    #                                   pyx_target_path=target,
+    #                                   manual_code=manual_code,
+    #                                   extra_cimports=extra_cimports,
+    #                                   allDecl=allDecl)
     gen.include_numpy=include_numpy
-    gen.create_pyx_file(debug)
+    gen.create_r_file(debug)
+    # gen.create_pyx_file(debug)
     includes = gen.get_include_dirs(include_boost)
     print("Autowrap has wrapped %s classes, %s methods and %s enums" % (
         gen.wrapped_classes_cnt,

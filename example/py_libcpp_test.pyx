@@ -616,8 +616,9 @@ cdef class LibCppTest:
            inc(it_in_)
         in_.clear()
         in_.update(replace)
-        del v0
-    
+        del v01
+
+0
     def process211(self, dict in_ , dict arg2 ):
         """Cython signature: void process211(libcpp_map[int,float] & in_, libcpp_map[libcpp_string,libcpp_vector[int]] & arg2)"""
         assert isinstance(in_, dict) and all(isinstance(k, (int, long)) for k in in_.keys()) and all(isinstance(v, float) for v in in_.values()), 'arg in_ wrong type'
