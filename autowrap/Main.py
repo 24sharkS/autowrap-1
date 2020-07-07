@@ -35,9 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import os
 import sys
 import glob
-import autowrap.version
-import autowrap.Code
-import autowrap
+from Code import Code
+from __init__ import *
 import optparse
 
 """
@@ -68,7 +67,7 @@ def main():
 
 
 def _main(argv):
-    parser = optparse.OptionParser(version=("%d.%d.%d" % autowrap.version))
+    parser = optparse.OptionParser(version=("%d.%d.%d" % (0,22,0)))
     parser.add_option("--addons", action="append", metavar="addon")
     parser.add_option("--converters", action="append", metavar="converter")
     parser.add_option("--out", action="store", nargs=1, metavar="pyx file")
@@ -138,7 +137,7 @@ def collect_manual_code(addons):
             else:
                 break
         remainder = "".join(line_iter)
-        manual_code.setdefault(clz_name, autowrap.Code.Code()).add(remainder)
+        manual_code.setdefault(clz_name, Code.Code()).add(remainder)
     return cimports, manual_code
 
 
@@ -200,7 +199,7 @@ def run_cython(inc_dirs, extra_opts, out):
 def create_wrapper_code(decls, instance_map, addons, converters, out, extra_inc_dirs, extra_opts, include_boost=True, allDecl=[]):
     cimports, manual_code = collect_manual_code(addons)
     register_converters(converters)
-    inc_dirs = autowrap.generate_code(decls, instance_map=instance_map, target=out, 
+    inc_dirs = generate_code(decls, instance_map=instance_map, target=out,
             debug=False, manual_code=manual_code, 
             extra_cimports=cimports, include_boost=include_boost, allDecl=allDecl)
 
@@ -212,7 +211,7 @@ def create_wrapper_code(decls, instance_map, addons, converters, out, extra_inc_
 
 
 def run(pxds, addons, converters, out, extra_inc_dirs=None, extra_opts=None):
-    decls, instance_map = autowrap.parse(pxds, ".")
+    decls, instance_map = parse(pxds, ".")
     return create_wrapper_code(decls, instance_map, addons, converters, out, extra_inc_dirs,
                                extra_opts)
 main()
