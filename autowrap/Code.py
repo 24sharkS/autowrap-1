@@ -95,8 +95,3 @@ class Code(object):
     def render(self):
         return "\n".join(self._render())
 
-c = Code()
-c.add("""
-  |tryCatch({
-  """)
-print(c._render())

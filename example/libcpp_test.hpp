@@ -209,7 +209,8 @@ class LibCppTest {
             in[1] = (float) arg2[42];
         }
 
-        void  process211(std::map<int, float> & in, std::map<std::string, std::vector<int> > & arg2)
+        void  process211(std::map<int, float> & in, std::map<std::string, std::vector<
+        > > & arg2)
         {
             std::string test_str("42");
             in[1] = (float) arg2[test_str][0];

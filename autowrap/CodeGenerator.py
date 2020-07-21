@@ -39,11 +39,11 @@ import sys
 import re
 from collections import defaultdict
 
-from ConversionProvider import setup_converter_registry
-from DeclResolver import (ResolvedClass, ResolvedEnum, ResolvedTypeDef,
+from autowrap.ConversionProvider import setup_converter_registry
+from autowrap.DeclResolver import (ResolvedClass, ResolvedEnum, ResolvedTypeDef,
                                    ResolvedFunction)
-from Types import CppType  # , printable
-import Code as Code
+from autowrap.Types import CppType  # , printable
+import autowrap.Code as Code
 
 import logging as L
 
@@ -212,6 +212,26 @@ class CodeGenerator(object):
         new_code.add("""
                 |Pymod <- import("%s")
                 |py_run_string("import gc")
+                |copy <- import("copy")
+                |py_builtin <- import_builtins()
+                |
+                |`r_to_py.R6` <- function(i,...){
+                |   tryCatch({
+                |       i$$.__enclos_env__$$private$$py_obj
+                |   }, error = function(e) { "Conversion not supported for this R6 Class"}
+                |   )
+                |}
+                |
+                |cast_names_list <- function(i){
+                |   if (all(check.numeric(i))) return(as.numeric(i)) 
+                |   return(i)
+                |}
+                |
+                |class_to_wrap <- function(py_ob){
+                |       strsplit(class(py_ob)[1],"\\\.")[[1]][2]
+                |}
+                |
+                |py_run_string(paste("def transform_dict(d):","    return dict(zip([k.decode('utf-8') for k in d.keys()], list(d.values())))",sep = "\\n"))
                 """ % self.r_target_path.split('.R')[0])
         self.top_level_code.append(new_code)
 
@@ -322,7 +342,8 @@ class CodeGenerator(object):
     def create_wrapper_for_enum(self, decl):
         self.wrapped_enums_cnt += 1
         if decl.cpp_decl.annotations.get("wrap-attach"):
-            name = "__" + decl.name
+            name = decl.name
+            # name = "__" + decl.name
         else:
             name = decl.name
         L.info("create wrapper for enum %s" % name)
@@ -337,15 +358,21 @@ class CodeGenerator(object):
         code.add("""
                    |
                    |$name = R6Class(classname = \"$name\", cloneable = FALSE,
+                   |
+                   |        public = list(
+                   |
                  """, name=name)
         for (name, value) in decl.items:
-            code.add("    $name = $value", name=name, value=value)
+            code.add("        $name = ${value}L,", name=name, value=value)
 
         # Add mapping of int (enum) to the value of the enum (as string)
-        # code.add("""
-        #         |
-        #         |    def getMapping(self):
-        #         |        return dict([ (v, k) for k, v in self.__class__.__dict__.items() if isinstance(v, int) ])""" )
+        code.add("""
+                |
+                |        getMapping = function() {
+                |            return( Pymod$$$name()$$getMapping() )
+                |        }
+                |    )
+                |)""", name = decl.name )
 
         self.class_codes[decl.name] = code
         self.class_pxd_codes[decl.name] = enum_pxd_code
@@ -431,7 +458,7 @@ class CodeGenerator(object):
             else:
                 class_code.add("""
                                 |    $docstring
-                                |R6Class(classname = \"$rname\",cloneable = FALSE,
+                                |$rname <- R6Class(classname = \"$rname\",cloneable = FALSE,
                                 |
                                 |    $py_ob
                                 |
@@ -498,16 +525,22 @@ class CodeGenerator(object):
 
         iterators, non_iter_methods = self.filterout_iterators(r_class.methods)
 
+        # total number of methods in that class
+        total_method_count = 0
+
+        for x,y in r_class.methods.items():
+            total_method_count += len(y)
+
         # TODO counter for wrapped methods (currently only wrapping non-overloaded & non-iterator methods).
         meth_cnt  = 0
         print(non_iter_methods.items())
         for (name, methods) in non_iter_methods.items():
-            meth_cnt+=1
+            meth_cnt+=len(methods)
             if name == r_class.name:
-                codes = self.create_wrapper_for_constructor(r_class, methods)
+                codes = self.create_wrapper_for_constructor(r_class, methods,meth_cnt,total_method_count)
                 cons_created = True
             else:
-                codes = self.create_wrapper_for_method(r_class, name, methods,meth_cnt)
+                codes = self.create_wrapper_for_method(r_class, name, methods,meth_cnt,total_method_count)
 
             for ci in codes:
                 class_code.add(ci)
@@ -580,7 +613,7 @@ class CodeGenerator(object):
         return codes
 
 
-    def _create_overloaded_method_decl(self, r_name, dispatched_m_names, methods, use_return, use_kwargs=False):
+    def _create_overloaded_method_decl(self, r_name, dispatched_m_names, methods, use_return, use_kwargs=False, for_cons = None, r_classname = None, deepcopy_for_cons = None):
 
         L.info("   create wrapper decl for overloaded method %s" % r_name)
 
@@ -631,15 +664,31 @@ class CodeGenerator(object):
                             """, locals())
             first_iteration = False
 
-        method_code.add("""    else{
-                        |           stop('wrong arguments provided')
-                        |      }
-                        |},
-                        |
-                        """)
+        if for_cons == True and r_classname is not None:
+            method_code.add("""    else{
+                            |           # to create a new R object and set its underlying python object as the one supplied in the constructor.
+                            |           # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct fashion.
+                            |           if( length(arg_list)==1 && ( "python.builtin.object" %in% class(arg_list[[1]]) && class_to_wrap(arg_list[[1]]) == "$r_classname" ) )
+                            """, locals())
+            if deepcopy_for_cons == True:
+                method_code.add(""" 
+                                |           { private$$py_obj <- copy$$deepcopy(arg_list[[1]])  }
+                                |           else {
+                                |                stop("wrong arguments provided")
+                                |           }
+                                |       }
+                                """, locals())
+            else:
+                method_code.add("""
+                                |           { private$$py_obj <- arg_list[[1]]  }
+                                |           else {
+                                |                stop("wrong arguments provided")
+                                |           }
+                                |       }
+                                """, locals())
         return method_code
 
-    def create_wrapper_for_method(self, cdcl, py_name, methods,meth_cnt):
+    def create_wrapper_for_method(self, cdcl, py_name, methods,meth_cnt,total_method_count):
         # commented for now.
         # if py_name.startswith("operator"):
         #     __, __, op = py_name.partition("operator")
@@ -669,7 +718,7 @@ class CodeGenerator(object):
         #         return [code]
 
         if len(methods) == 1:
-            code = self.create_wrapper_for_nonoverloaded_method(cdcl, py_name, methods[0],meth_cnt)
+            code = self.create_wrapper_for_nonoverloaded_method(cdcl, py_name, methods[0],meth_cnt,total_method_count)
             return [code]
         else:
             # TODO: what happens if two distinct c++ types as float, double
@@ -678,19 +727,32 @@ class CodeGenerator(object):
             # -> 2) force method renaming
             codes = []
             dispatched_m_names = []
+            total_method_count -= len(methods)
             for (i, method) in enumerate(methods):
                 dispatched_m_name = "_%s_%d" % (py_name, i)
                 dispatched_m_names.append(dispatched_m_name)
+                total_method_count += 1
                 code = self.create_wrapper_for_nonoverloaded_method(cdcl,
                                                                     dispatched_m_name,
-                                                                    method,meth_cnt)
+                                                                    method,meth_cnt,total_method_count)
                 codes.append(code)
 
             code = self._create_overloaded_method_decl(py_name, dispatched_m_names, methods, True)
             codes.append(code)
+            if meth_cnt == total_method_count:
+                codes.append(Code.Code().add("""
+                   |
+                   |}
+                   |)
+                    """))
+            else:
+                codes.append(Code.Code().add("""
+                   |
+                   |},
+                    """))
             return codes
 
-    def _create_fun_decl_and_input_conversion(self, code, py_name, method, is_free_fun=False):
+    def _create_fun_decl_and_input_conversion(self, code, py_name, method, is_free_fun=False, is_single_cons = None,class_decl = None):
         """ Creates the function declarations and the input conversion to python
         and the output conversion back to R.
 
@@ -716,7 +778,7 @@ class CodeGenerator(object):
             converter.cr = self.cr
             py_type = converter.matching_python_type(t)
             cr_ref = False
-            if(converter.get_base_types()[0] == "libcpp_pair"):
+            if converter.get_base_types()[0] in ["libcpp_pair","libcpp_set","libcpp_vector","libcpp_map"]:
                 conv_code, call_as, cleanup, cr_ref = converter.input_conversion(t, n, arg_num)
             else:
                 conv_code, call_as, cleanup = converter.input_conversion(t, n, arg_num)
@@ -729,6 +791,13 @@ class CodeGenerator(object):
             call_args.append(call_as)
             in_types.append(t)
             checks.append((n, converter.type_check_expression(t, n)))
+
+        str_eval_missing = []
+        if is_single_cons is True:
+            if len(py_signature_parts) > 1:
+                for i in py_signature_parts[1:]:
+                    str_eval_missing.append("missing(%s)" % i)
+                str_eval_missing = ' && '.join(str_eval_missing)
 
         # Step 1: create method decl statement
         # if not is_free_fun:
@@ -750,8 +819,33 @@ class CodeGenerator(object):
 
         # Step 2a: create code which convert R input args to python args of
         # wrapped method
-        for n, check in checks:
-            code.add("    if(!(%s)){ stop(arg %s wrong type) }" % (check, n))
+        if is_single_cons in (None,False):
+            for n, check in checks:
+                code.add("""
+                           |    if(!(%s)){ stop(\"arg %s wrong type\") }
+                           """ % (check,n))
+                # code.add("    if(!(%s)){ stop(\"arg %s wrong type\") }" % (check, n))
+        else:
+            if is_single_cons is True:
+                if len(str_eval_missing) > 0:
+                    first = py_signature_parts[0]
+                    code.add("""
+                               |if($str_eval_missing){
+                               |     if( "python.builtin.object" %in% class($first) && class_to_wrap($first) == "%s" ) { private$$py_obj <- $first }
+                               |  } else {
+                               """ % (class_decl.name), locals())
+                    for n, check in checks:
+                        code.add("    if(!(%s)){ stop(\"arg %s wrong type\") }" % (check, n))
+                else:
+                    first = py_signature_parts[0]
+                    code.add("""
+                               |if( "python.builtin.object" %in% class($first) && class_to_wrap($first) == "%s" ){
+                               |      private$py_obj <- $first
+                               |  } else {
+                               """ % (class_decl.name), locals())
+                    for n, check in checks:
+                        code.add("    if(!(%s)){ stop(\"arg %s wrong type\") }" % (check, n))
+
 
         # Step 2b: add any more sophisticated conversion code that was created
         # above:
@@ -770,6 +864,7 @@ class CodeGenerator(object):
 
         converter = self.cr.get(t)
         py_type = converter.matching_python_type(t)
+        type_check = converter.type_check_expression(t,name)
         conv_code, call_as, cleanup = converter.input_conversion(t, name, 0)
 
         if wrap_constant:
@@ -789,7 +884,6 @@ class CodeGenerator(object):
             code.add("""
                 |    $name = function($name){
                 |        if(!missing($name)){
-                |
                 """, locals())
             # code.add("""
             #     |    def __set__(self, $py_type $name):
@@ -797,13 +891,15 @@ class CodeGenerator(object):
 
             # TODO: add mit indent level
             indented = Code.Code()
+            indented.add("""
+                       |        if(!(%s)){ stop(\"arg %s wrong type\") }
+                       """ % (type_check, name))
             indented.add(conv_code)
             code.add(indented)
 
             code.add("""
-                |        private$$py_obj$$$name <- $call_as
-                |        }
-                |        else {
+                |               private$$py_obj$$$name <- $call_as
+                |        } else {
                 """, locals())
             indented = Code.Code()
 
@@ -814,7 +910,7 @@ class CodeGenerator(object):
             code.add(indented)
 
         to_r_code = converter.output_conversion(t, "py_ans", "r_result")
-        access_stmt = converter.call_method(t, """private@py_obj@%s""" % name)
+        access_stmt = converter.call_method(t, """private$$py_obj$$%s""" % name)
 
         cy_type = self.cr.cython_type(t)
 
@@ -822,7 +918,7 @@ class CodeGenerator(object):
             to_r_code = "    %s" % to_r_code
 
         if isinstance(access_stmt, basestring):
-            access_stmt = "    %s" % access_stmt
+            access_stmt = "        %s" % access_stmt
 
         if t.is_ptr:
             # For pointer types, we need to guard against unsafe access
@@ -860,17 +956,15 @@ class CodeGenerator(object):
 
         if attr_cur == total_attr_cnt:
             code.add("""
-                |
                 |    }
                 """)
         else:
             code.add("""
-                |
                 |    },
                 """)
         return code
 
-    def create_wrapper_for_nonoverloaded_method(self, cdcl, py_name, method,meth_cnt):
+    def create_wrapper_for_nonoverloaded_method(self, cdcl, py_name, method,meth_cnt,total_method_count):
 
         L.info("   create wrapper for %s ('%s')" % (py_name, method))
         # Here added code for the method.
@@ -878,15 +972,13 @@ class CodeGenerator(object):
         # print("meth_cnt = "+str(meth_cnt))
         meth_code = Code.Code()
 
-        if(meth_cnt == 1):
-            call_args, cleanups, in_types, ref_arg = self._create_fun_decl_and_input_conversion(meth_code, py_name,method,is_first = True)
-        else:
-            call_args, cleanups, in_types, ref_arg = self._create_fun_decl_and_input_conversion(meth_code,py_name,method)
+        call_args, cleanups, in_types, ref_arg = self._create_fun_decl_and_input_conversion(meth_code,py_name,method)
 
         # call wrapped method and convert result value back to R
         cpp_name = method.cpp_decl.name
         call_args_str = ", ".join(call_args)
-        cy_call_str = "private$py_obj$%s(%s)" % (cpp_name, call_args_str)
+        cy_call_str = "private$py_obj$%s(%s)" % (py_name, call_args_str)
+        # cy_call_str = "private$py_obj$%s(%s)" % (cpp_name, call_args_str)
 
         res_t = method.result_type
         out_converter = self.cr.get(res_t)
@@ -934,7 +1026,7 @@ class CodeGenerator(object):
                   """)
                 for arg,num in ref_arg:
                     indented.add("""
-                      |    eval.parent(substitute(%s<-byref_%s))
+                      |    eval.parent(substitute(%s <- byref_%s))
                       """ % (arg,num))
                 indented.add("""
                   |    return(r_ans)
@@ -942,7 +1034,7 @@ class CodeGenerator(object):
                   |    )
                   |
                   """)
-                if(meth_cnt == len(cdcl.methods)):
+                if(meth_cnt == total_method_count):
                     indented.add("""
                       |}
                       |
@@ -958,7 +1050,7 @@ class CodeGenerator(object):
                     to_py_code = "    %s" % to_r_code
                 indented.add(to_r_code)
                 indented.add("    return(r_ans)")
-                if(meth_cnt == len(cdcl.methods)):
+                if(meth_cnt == total_method_count):
                     indented.add("""
                       |}
                       |
@@ -978,7 +1070,7 @@ class CodeGenerator(object):
                   """)
                 for arg,num in ref_arg:
                     indented.add("""
-                      |    eval.parent(substitute(%s<-byref_%s))
+                      |    eval.parent(substitute(%s <- byref_%s))
                       """ % (arg,num))
                 indented.add("""
                   |    invisible(NULL)
@@ -986,7 +1078,7 @@ class CodeGenerator(object):
                   |    )
                   |
                   """)
-                if(meth_cnt == len(cdcl.methods)):
+                if(meth_cnt == total_method_count):
                     indented.add("""
                       |}
                       |
@@ -999,7 +1091,7 @@ class CodeGenerator(object):
             else:
                 print("No ref args")
                 indented.add("    invisible(NULL)")
-                if(meth_cnt == len(cdcl.methods)):
+                if(meth_cnt == total_method_count):
                     indented.add("""
                       |}
                       |
@@ -1076,18 +1168,20 @@ class CodeGenerator(object):
 
         return fun_code
 
-    def create_wrapper_for_constructor(self, class_decl, constructors):
+    def create_wrapper_for_constructor(self, class_decl, constructors,meth_cnt, total_method_count):
         real_constructors = []
         codes = []
         # to store number of constructor arguments.
         cons_arg_len = []
+        deepcopy_for_cons = False
         for cons in constructors:
             real_constructors.append(cons)
             cons_arg_len.append(len(cons.arguments))
             # commenting for now.
-            # if len(cons.arguments) == 1:
-            #     (n, t), = cons.arguments
-            #     if t.base_type == class_decl.name and t.is_ref:
+            if len(cons.arguments) == 1:
+                (n, t), = cons.arguments
+                if t.base_type == class_decl.name and t.is_ref:
+                    deepcopy_for_cons = True
             #         code = self.create_special_copy_method(class_decl)
             #         codes.append(code)
 
@@ -1100,26 +1194,24 @@ class CodeGenerator(object):
             """, locals())
         codes.append(cons_code)
 
+        # Flag to check if the class has single constructor only
+        is_single_cons = False
+        # print("length of non_iter_methods = ",str(len_non_iter_method))
+
         if len(real_constructors) == 1:
+            is_single_cons = True
             if real_constructors[0].cpp_decl.annotations.get("wrap-pass-constructor", False):
-                # We have a single constructor that cannot be called (except
-                # with the magic keyword), simply check the magic word first
-                # cons_code.add("""
-                #    |
-                #    |def __init__(self, *args, **kwargs):
-                #    |    if not kwargs.get("__createUnsafeObject__") is True:
-                #    |        raise Exception("Cannot call this constructor")
-                #     """, locals())
+                cons_code.add("""
+                   |
+                   |initialize = function(...){
+                   |    stop("Cannot call this constructor")
+                   |},
+                    """, locals())
                 return codes
 
             code = self.create_wrapper_for_nonoverloaded_constructor(class_decl,
                                                                      "initialize",
-                                                                     real_constructors[0])
-            codes.append(Code.Code().add("""
-               |
-               |},
-                """))
-            codes.append(code)
+                                                                     real_constructors[0],is_single_cons = is_single_cons)
         else:
             dispatched_cons_names = []
             for (i, constructor) in enumerate(real_constructors):
@@ -1127,7 +1219,7 @@ class CodeGenerator(object):
                 dispatched_cons_names.append(dispatched_cons_name)
                 code = self.create_wrapper_for_nonoverloaded_constructor(class_decl,
                                                                          dispatched_cons_name,
-                                                                         constructor)
+                                                                         constructor, is_single_cons = is_single_cons)
                 codes.append(code)
                 codes.append(Code.Code().add("""
                    |
@@ -1135,19 +1227,32 @@ class CodeGenerator(object):
                     """))
 
             code = self._create_overloaded_method_decl("initialize", dispatched_cons_names,
-                                                       constructors, False, True)
-            codes.append(code)
+                                                       constructors, False, True, for_cons = True, r_classname = class_decl.name,deepcopy_for_cons = deepcopy_for_cons)
+
+        codes.append(code)
+        if meth_cnt == total_method_count:
+            codes.append(Code.Code().add("""
+               |
+               |}
+               |)
+                """))
+        else:
+            codes.append(Code.Code().add("""
+               |
+               |},
+                """))
+
         return codes
 
     def create_wrapper_for_nonoverloaded_constructor(self, class_decl, r_name,
-                                                     cons_decl):
+                                                     cons_decl, is_single_cons = None):
         """ r_name is the name for constructor
 
         """
         L.info("   create wrapper for non overloaded constructor %s" % r_name)
         cons_code = Code.Code()
         call_args, cleanups, in_types, ref_arg = \
-            self._create_fun_decl_and_input_conversion(cons_code, r_name, cons_decl)
+            self._create_fun_decl_and_input_conversion(cons_code, r_name, cons_decl,is_single_cons = is_single_cons, class_decl = class_decl)
 
         wrap_pass = cons_decl.cpp_decl.annotations.get("wrap-pass-constructor", False)
 
@@ -1163,12 +1268,21 @@ class CodeGenerator(object):
         name = class_decl.name
         print(name)
         cy_type = self.cr.cython_type(name)
-        cons_code.add("""
-           |
-           |    private$$py_obj <- Pymod$$$name($call_args_str)
-           |    return(self)
-           |
-            """, locals())
+        if is_single_cons in (None,False):
+            cons_code.add("""
+               |
+               |    private$$py_obj <- Pymod$$$name($call_args_str)
+               |    return(self)
+               |
+                """, locals())
+        else:
+            if is_single_cons is True:
+                cons_code.add("""
+                   |
+                   |    private$$py_obj <- Pymod$$$name($call_args_str)
+                   |    return(self)
+                   |    }
+                    """, locals())
 
         for cleanup in reversed(cleanups):
             if not cleanup:
@@ -1574,6 +1688,7 @@ class CodeGenerator(object):
         code = Code.Code()
         code.add("""
                 |library(reticulate)
+                |listDepth <- plotrix::listDepth
                 |library(purrr)
                 |library(R6)
                 """)

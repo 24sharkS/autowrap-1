@@ -35,8 +35,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import os
 import sys
 import glob
-from Code import Code
-from __init__ import *
+from autowrap.Code import Code
+from autowrap.__init__ import *
 import optparse
 
 """

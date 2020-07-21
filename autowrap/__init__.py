@@ -34,8 +34,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 # from .version import *
-import DeclResolver
-import CodeGenerator
+import autowrap.DeclResolver
+import autowrap.CodeGenerator
 import logging as L
 L.basicConfig(level=L.INFO)
 
@@ -49,14 +49,14 @@ The autowrap process consists of two steps:
 
 def parse(files, root, num_processes=1):
     # import autowrap.DeclResolver
-    return DeclResolver.resolve_decls_from_files(files, root, num_processes)
+    return autowrap.DeclResolver.resolve_decls_from_files(files, root, num_processes)
 
 
 def generate_code(decls, instance_map, target, debug=False, manual_code=None,
                   extra_cimports=None, include_boost=True, include_numpy=False, allDecl=[]):
 
     # import autowrap.CodeGenerator
-    gen = CodeGenerator.CodeGenerator(decls,
+    gen = autowrap.CodeGenerator.CodeGenerator(decls,
                                       instance_map,
                                       r_target_path=target,
                                       manual_code=manual_code,
