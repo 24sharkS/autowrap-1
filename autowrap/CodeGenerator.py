@@ -672,7 +672,7 @@ class CodeGenerator(object):
                             """, locals())
             if deepcopy_for_cons == True:
                 method_code.add(""" 
-                                |           { private$$py_obj <- copy$$deepcopy(arg_list[[1]])  }
+                                |           { private$$py_obj <- arg_list[[1]]  }
                                 |           else {
                                 |                stop("wrong arguments provided")
                                 |           }
@@ -778,7 +778,7 @@ class CodeGenerator(object):
             converter.cr = self.cr
             py_type = converter.matching_python_type(t)
             cr_ref = False
-            if converter.get_base_types()[0] in ["libcpp_pair","libcpp_set","libcpp_vector","libcpp_map"]:
+            if converter.get_base_types()[0] in ["libcpp_pair","libcpp_set","libcpp_vector","libcpp_map","shared_ptr"]:
                 conv_code, call_as, cleanup, cr_ref = converter.input_conversion(t, n, arg_num)
             else:
                 conv_code, call_as, cleanup = converter.input_conversion(t, n, arg_num)
@@ -1690,6 +1690,7 @@ class CodeGenerator(object):
                 |library(reticulate)
                 |listDepth <- plotrix::listDepth
                 |library(purrr)
+                |check.numeric <- varhandle::check.numeric
                 |library(R6)
                 """)
         # code.add("""

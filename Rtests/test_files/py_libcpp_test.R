@@ -1,6 +1,7 @@
 library(reticulate)
 listDepth <- plotrix::listDepth
 library(purrr)
+check.numeric <- varhandle::check.numeric
 library(R6)
 Pymod <- import("py_libcpp_test")
 py_run_string("import gc")
@@ -182,7 +183,7 @@ Int <- R6Class(classname = "Int",cloneable = FALSE,
         if(!(is.R6(i) && class(i)[1] == "Int")){ stop("arg i wrong type") }
     
     
-        private$py_obj <- Pymod$Int(i$.__enclos_env__$private$py_obj)
+        private$py_obj <- Pymod$Int(i)
         return(self)
     
     
@@ -198,7 +199,7 @@ Int <- R6Class(classname = "Int",cloneable = FALSE,
                # to create a new R object and set its underlying python object as the one supplied in the constructor.
                # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct fashion.
                if( length(arg_list)==1 && ( "python.builtin.object" %in% class(arg_list[[1]]) && class_to_wrap(arg_list[[1]]) == "Int" ) )
-               { private$py_obj <- copy$deepcopy(arg_list[[1]])  }
+               { private$py_obj <- arg_list[[1]]  }
                else {
                     stop("wrong arguments provided")
                }
@@ -291,10 +292,10 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     process = function(in_0){
     
         if(!(is_list(in_0) && all(sapply(in_0,function(elemt_rec)  (is_scalar_integer(elemt_rec) || is_scalar_double(elemt_rec)) && elemt_rec == as.integer(elemt_rec))))){ stop("arg in_0 wrong type") }
-        v0 <- r_to_py(map(in_0,as.integer))
+        v0 <- r_to_py(modify_depth(in_0,1,as.integer))
         py_ans = private$py_obj$process(v0)
-        byref_0 <- as.list(py_to_r(v0))
-        r_ans <- as.list(py_ans)
+        byref_0 <- map_depth(py_to_r(v0),0,as.list)
+        r_ans <- map(py_ans,as.integer)
     
         tryCatch({
         eval.parent(substitute(in_0 <- byref_0))
@@ -384,7 +385,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     process6 = function(in_0){
     
         if(!(is_list(in_0) && all(sapply(in_0,function(elemt_rec) is_list(elemt_rec) && length(elemt_rec) == 2 &&  (is_scalar_integer(elemt_rec[[1]]) || is_scalar_double(elemt_rec[[1]])) && elemt_rec[[1]] == as.integer(elemt_rec[[1]]) && is_scalar_double(elemt_rec[[2]]))))){ stop("arg in_0 wrong type") }
-        v0 <- r_to_py(in_0)
+        v0 <- r_to_py(map_depth(in_0,1, function(a) list(as.integer(a[[1]]),a[[2]])))
         py_ans = private$py_obj$process6(v0)
         byref_0 <- py_to_r(v0)
         r_ans <- py_ans
@@ -421,7 +422,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
         if(!(is_list(in_0) && all(sapply(in_0,function(elemt_rec) elemt_rec %in% c(0, 1))))){ stop("arg in_0 wrong type") }
         v0 <- r_to_py(map(in_0,as.integer))
         py_ans = private$py_obj$process8(v0)
-        byref_0 <- py_to_r(v0)
+        byref_0 <- as.list(py_to_r(v0))
         r_ans <- as.list(py_ans)
     
         tryCatch({
@@ -477,7 +478,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: libcpp_set[LibCppTest] process11(libcpp_set[LibCppTest] &)
     process11 = function(in_0){
     
-        if(!(is_list(in_0) && all(sapply(in_0,function(el) is.R6(el) && class(el)[1] == "LibCppTest")) && length(in_0) == py_builtin$len(py_builtin$set(lapply(in_0, function(x) x$.__enclos_env__$private$py_obj))))){ stop("arg in_0 wrong type") }
+        if(!(is_list(in_0) && all(sapply(in_0,function(el) is.R6(el) && class(el)[1] == "LibCppTest")) && length(in_0) == py_builtin$len(py_builtin$set(r_to_py(in_0))))){ stop("arg in_0 wrong type") }
         py$v0 <- lapply(in_0,function(item0) item0$.__enclos_env__$private$py_obj)
         py_run_string("v0 = set(v0)")
         py_ans = private$py_obj$process11(py$v0)
@@ -546,16 +547,8 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: float process16(libcpp_map[int,float] in_)
     process16 = function(in_){
     
-        if(!(is_list(in_) && !is.null(names(in_)) && all(sapply( cast_names_list(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_)))){ stop("arg in_ wrong type") }
-        v0 <- in_
-        if(length(v0)==1){
-           key <- as.list(as.integer(cast_names_list(names(v0))))
-           value <- unname(v0)
-        } else {
-           key <- as.integer(cast_names_list(names(v0)))
-           value <- unname(v0)
-        }
-        v0 <- py_dict(key,value)
+        if(!(is_list(in_) && ifelse(length(in_)==0,TRUE,!is.null(names(in_)) && all(sapply( as.numeric(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_))))){ stop("arg in_ wrong type") }
+        v0 <- py_dict(map(names(in_),as.integer),unname(in_))
         py_ans = private$py_obj$process16(v0)
         r_ans = py_ans
         return(r_ans)
@@ -564,16 +557,8 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: float process17(libcpp_map[EEE,float] in_)
     process17 = function(in_){
     
-        if(!(is_list(in_) && !is.null(names(in_)) && all(sapply( cast_names_list(names(in_)),function(k) k %in% c(0, 1))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_)))){ stop("arg in_ wrong type") }
-        v0 <- in_
-        if(length(v0)==1){
-           key <- as.list(as.integer(cast_names_list(names(v0))))
-           value <- unname(v0)
-        } else {
-           key <- as.integer(cast_names_list(names(v0)))
-           value <- unname(v0)
-        }
-        v0 <- py_dict(key,value)
+        if(!(is_list(in_) && ifelse(length(in_)==0,TRUE,!is.null(names(in_)) && all(sapply( as.numeric(names(in_)),function(k) k %in% c(0, 1))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_))))){ stop("arg in_ wrong type") }
+        v0 <- py_dict(map(names(in_),as.integer),unname(in_))
         py_ans = private$py_obj$process17(v0)
         r_ans = py_ans
         return(r_ans)
@@ -582,16 +567,8 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: int process18(libcpp_map[int,LibCppTest] in_)
     process18 = function(in_){
     
-        if(!(is_list(in_) && !is.null(names(in_)) && all(sapply( cast_names_list(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is.R6(v) && class(v)[1] == "LibCppTest")) && length(unique(names(in_))) == length(names(in_)))){ stop("arg in_ wrong type") }
-        v0 <- in_
-        if(length(v0)==1){
-           key <- as.list(as.integer(cast_names_list(names(v0))))
-           value <- unname(v0)
-        } else {
-           key <- as.integer(cast_names_list(names(v0)))
-           value <- unname(v0)
-        }
-        v0 <- py_dict(key,value)
+        if(!(is_list(in_) && ifelse(length(in_)==0,TRUE,!is.null(names(in_)) && all(sapply( as.numeric(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is.R6(v) && class(v)[1] == "LibCppTest")) && length(unique(names(in_))) == length(names(in_))))){ stop("arg in_ wrong type") }
+        v0 <- py_dict(map(names(in_),as.integer),unname(in_))
         py_ans = private$py_obj$process18(v0)
         r_ans = py_ans
         return(r_ans)
@@ -600,18 +577,10 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process19(libcpp_map[int,LibCppTest] & in_)
     process19 = function(in_){
     
-        if(!(is_list(in_) && !is.null(names(in_)) && all(sapply( cast_names_list(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is.R6(v) && class(v)[1] == "LibCppTest")) && length(unique(names(in_))) == length(names(in_)))){ stop("arg in_ wrong type") }
-        v0 <- in_
-        if(length(v0)==1){
-           key <- as.list(as.integer(cast_names_list(names(v0))))
-           value <- unname(v0)
-        } else {
-           key <- as.integer(cast_names_list(names(v0)))
-           value <- unname(v0)
-        }
-        v0 <- py_dict(key,value)
+        if(!(is_list(in_) && ifelse(length(in_)==0,TRUE,!is.null(names(in_)) && all(sapply( as.numeric(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is.R6(v) && class(v)[1] == "LibCppTest")) && length(unique(names(in_))) == length(names(in_))))){ stop("arg in_ wrong type") }
+        v0 <- py_dict(map(names(in_),as.integer),unname(in_))
         private$py_obj$process19(v0)
-        v0 <- lapply(v0, function(i) eval(parse(text = paste0(class_to_wrap(i),"$","new(i)"))))
+        v0 <- lapply(py_to_r(v0), function(i) eval(parse(text = paste0(class_to_wrap(i),"$","new(i)"))))
         byref_0 <- v0
     
         tryCatch({
@@ -625,18 +594,10 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process20(libcpp_map[int,float] & in_)
     process20 = function(in_){
     
-        if(!(is_list(in_) && !is.null(names(in_)) && all(sapply( cast_names_list(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_)))){ stop("arg in_ wrong type") }
-        v0 <- in_
-        if(length(v0)==1){
-           key <- as.list(as.integer(cast_names_list(names(v0))))
-           value <- unname(v0)
-        } else {
-           key <- as.integer(cast_names_list(names(v0)))
-           value <- unname(v0)
-        }
-        v0 <- py_dict(key,value)
+        if(!(is_list(in_) && ifelse(length(in_)==0,TRUE,!is.null(names(in_)) && all(sapply( as.numeric(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_))))){ stop("arg in_ wrong type") }
+        v0 <- py_dict(map(names(in_),as.integer),unname(in_))
         private$py_obj$process20(v0)
-        byref_0 <- v0
+        byref_0 <- py_to_r(v0)
     
         tryCatch({
         eval.parent(substitute(in_ <- byref_0))
@@ -649,29 +610,13 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process21(libcpp_map[int,float] & in_, libcpp_map[int,int] & arg2)
     process21 = function(in_, arg2){
     
-        if(!(is_list(in_) && !is.null(names(in_)) && all(sapply( cast_names_list(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_)))){ stop("arg in_ wrong type") }
-        if(!(is_list(arg2) && !is.null(names(arg2)) && all(sapply( cast_names_list(names(arg2)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(arg2,function(v)  (is_scalar_integer(v) || is_scalar_double(v)) && v == as.integer(v))) && length(unique(names(arg2))) == length(names(arg2)))){ stop("arg arg2 wrong type") }
-        v0 <- in_
-        if(length(v0)==1){
-           key <- as.list(as.integer(cast_names_list(names(v0))))
-           value <- unname(v0)
-        } else {
-           key <- as.integer(cast_names_list(names(v0)))
-           value <- unname(v0)
-        }
-        v0 <- py_dict(key,value)
-        v1 <- arg2
-        if(length(v1)==1){
-           key <- as.list(as.integer(cast_names_list(names(v1))))
-           value <- as.list(as.integer(unname(v1)))
-        } else {
-           key <- as.integer(cast_names_list(names(v1)))
-           value <- as.integer(unname(v1))
-        }
-        v1 <- py_dict(key,value)
+        if(!(is_list(in_) && ifelse(length(in_)==0,TRUE,!is.null(names(in_)) && all(sapply( as.numeric(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_))))){ stop("arg in_ wrong type") }
+        if(!(is_list(arg2) && ifelse(length(arg2)==0,TRUE,!is.null(names(arg2)) && all(sapply( as.numeric(names(arg2)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(arg2,function(v)  (is_scalar_integer(v) || is_scalar_double(v)) && v == as.integer(v))) && length(unique(names(arg2))) == length(names(arg2))))){ stop("arg arg2 wrong type") }
+        v0 <- py_dict(map(names(in_),as.integer),unname(in_))
+        v1 <- py_dict(map(names(arg2),as.integer),as.integer(unname(arg2)))
         private$py_obj$process21(v0, v1)
-        byref_1 <- v1
-        byref_0 <- v0
+        byref_1 <- py_to_r(v1)
+        byref_0 <- py_to_r(v0)
     
         tryCatch({
         eval.parent(substitute(in_ <- byref_0))
@@ -685,29 +630,14 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process211(libcpp_map[int,float] & in_, libcpp_map[libcpp_string,libcpp_vector[int]] & arg2)
     process211 = function(in_, arg2){
     
-        if(!(is_list(in_) && !is.null(names(in_)) && all(sapply( cast_names_list(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_)))){ stop("arg in_ wrong type") }
-        if(!(is_list(arg2) && !is.null(names(arg2)) && all(sapply( cast_names_list(names(arg2)),function(k) is_scalar_character(k))) && all(sapply(arg2,function(v) is_list(v) && all(sapply(v,function(elemt_rec)  (is_scalar_integer(elemt_rec) || is_scalar_double(elemt_rec)) && elemt_rec == as.integer(elemt_rec))))) && length(unique(names(arg2))) == length(names(arg2)))){ stop("arg arg2 wrong type") }
-        v0 <- in_
-        if(length(v0)==1){
-           key <- as.list(as.integer(cast_names_list(names(v0))))
-           value <- unname(v0)
-        } else {
-           key <- as.integer(cast_names_list(names(v0)))
-           value <- unname(v0)
-        }
-        v0 <- py_dict(key,value)
-        v1 <- arg2
-        if(length(v1)==1){
-           key <- lapply(cast_names_list(names(v1)),function(i) py_builtin$bytes(i,'utf-8'))
-           value <- unname(v1)
-        } else {
-           key <- lapply(cast_names_list(names(v1)),function(i) py_builtin$bytes(i,'utf-8'))
-           value <- unname(v1)
-        }
-        v1 <- py_dict(key,value)
+        if(!(is_list(in_) && ifelse(length(in_)==0,TRUE,!is.null(names(in_)) && all(sapply( as.numeric(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_))))){ stop("arg in_ wrong type") }
+        if(!(is_list(arg2) && ifelse(length(arg2)==0,TRUE,!is.null(names(arg2)) && all(sapply(arg2,function(v) is_list(v) && all(sapply(v,function(elemt_rec)  (is_scalar_integer(elemt_rec) || is_scalar_double(elemt_rec)) && elemt_rec == as.integer(elemt_rec))))) && length(unique(names(arg2))) == length(names(arg2))))){ stop("arg arg2 wrong type") }
+        v0 <- py_dict(map(names(in_),as.integer),unname(in_))
+        v1 <- py_dict(map(names(arg2),function(a) py_builtin$bytes(a,'utf-8')),modify_depth(unname(arg2),2,as.integer))
         private$py_obj$process211(v0, v1)
-        byref_1 <- py$transform_dict(v1)
-        byref_0 <- v0
+        v1 <- py$transform_dict(v1)
+        byref_1 <- map_depth(v1,2,as.list)
+        byref_0 <- py_to_r(v0)
     
         tryCatch({
         eval.parent(substitute(in_ <- byref_0))
@@ -721,29 +651,14 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process212(libcpp_map[int,float] & in_, libcpp_map[libcpp_string,libcpp_vector[libcpp_vector[int]]] & arg2)
     process212 = function(in_, arg2){
     
-        if(!(is_list(in_) && !is.null(names(in_)) && all(sapply( cast_names_list(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_)))){ stop("arg in_ wrong type") }
-        if(!(is_list(arg2) && !is.null(names(arg2)) && all(sapply( cast_names_list(names(arg2)),function(k) is_scalar_character(k))) && all(sapply(arg2,function(v) is_list(v) && all(sapply(v,function(elemt_rec) is_list(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec)  (is_scalar_integer(elemt_rec_rec) || is_scalar_double(elemt_rec_rec)) && elemt_rec_rec == as.integer(elemt_rec_rec))))))) && length(unique(names(arg2))) == length(names(arg2)))){ stop("arg arg2 wrong type") }
-        v0 <- in_
-        if(length(v0)==1){
-           key <- as.list(as.integer(cast_names_list(names(v0))))
-           value <- unname(v0)
-        } else {
-           key <- as.integer(cast_names_list(names(v0)))
-           value <- unname(v0)
-        }
-        v0 <- py_dict(key,value)
-        v1 <- arg2
-        if(length(v1)==1){
-           key <- lapply(cast_names_list(names(v1)),function(i) py_builtin$bytes(i,'utf-8'))
-           value <- unname(v1)
-        } else {
-           key <- lapply(cast_names_list(names(v1)),function(i) py_builtin$bytes(i,'utf-8'))
-           value <- unname(v1)
-        }
-        v1 <- py_dict(key,value)
+        if(!(is_list(in_) && ifelse(length(in_)==0,TRUE,!is.null(names(in_)) && all(sapply( as.numeric(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_))))){ stop("arg in_ wrong type") }
+        if(!(is_list(arg2) && ifelse(length(arg2)==0,TRUE,!is.null(names(arg2)) && all(sapply(arg2,function(v) is_list(v) && all(sapply(v,function(elemt_rec) is_list(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec)  (is_scalar_integer(elemt_rec_rec) || is_scalar_double(elemt_rec_rec)) && elemt_rec_rec == as.integer(elemt_rec_rec))))))) && length(unique(names(arg2))) == length(names(arg2))))){ stop("arg arg2 wrong type") }
+        v0 <- py_dict(map(names(in_),as.integer),unname(in_))
+        v1 <- py_dict(map(names(arg2),function(a) py_builtin$bytes(a,'utf-8')),modify_depth(unname(arg2),3,as.integer))
         private$py_obj$process212(v0, v1)
-        byref_1 <- py$transform_dict(v1)
-        byref_0 <- v0
+        v1 <- py$transform_dict(v1)
+        byref_1 <- map_depth(v1,3,as.list)
+        byref_0 <- py_to_r(v0)
     
         tryCatch({
         eval.parent(substitute(in_ <- byref_0))
@@ -757,29 +672,14 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process214(libcpp_map[int,float] & in_, libcpp_map[libcpp_string,libcpp_vector[libcpp_pair[int,int]]] & arg2)
     process214 = function(in_, arg2){
     
-        if(!(is_list(in_) && !is.null(names(in_)) && all(sapply( cast_names_list(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_)))){ stop("arg in_ wrong type") }
-        if(!(is_list(arg2) && !is.null(names(arg2)) && all(sapply( cast_names_list(names(arg2)),function(k) is_scalar_character(k))) && all(sapply(arg2,function(v) is_list(v) && all(sapply(v,function(elemt_rec) is_list(elemt_rec) && length(elemt_rec) == 2 &&  (is_scalar_integer(elemt_rec[[1]]) || is_scalar_double(elemt_rec[[1]])) && elemt_rec[[1]] == as.integer(elemt_rec[[1]]) &&  (is_scalar_integer(elemt_rec[[2]]) || is_scalar_double(elemt_rec[[2]])) && elemt_rec[[2]] == as.integer(elemt_rec[[2]]))))) && length(unique(names(arg2))) == length(names(arg2)))){ stop("arg arg2 wrong type") }
-        v0 <- in_
-        if(length(v0)==1){
-           key <- as.list(as.integer(cast_names_list(names(v0))))
-           value <- unname(v0)
-        } else {
-           key <- as.integer(cast_names_list(names(v0)))
-           value <- unname(v0)
-        }
-        v0 <- py_dict(key,value)
-        v1 <- arg2
-        if(length(v1)==1){
-           key <- lapply(cast_names_list(names(v1)),function(i) py_builtin$bytes(i,'utf-8'))
-           value <- unname(v1)
-        } else {
-           key <- lapply(cast_names_list(names(v1)),function(i) py_builtin$bytes(i,'utf-8'))
-           value <- unname(v1)
-        }
-        v1 <- py_dict(key,value)
+        if(!(is_list(in_) && ifelse(length(in_)==0,TRUE,!is.null(names(in_)) && all(sapply( as.numeric(names(in_)),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_,function(v) is_scalar_double(v))) && length(unique(names(in_))) == length(names(in_))))){ stop("arg in_ wrong type") }
+        if(!(is_list(arg2) && ifelse(length(arg2)==0,TRUE,!is.null(names(arg2)) && all(sapply(arg2,function(v) is_list(v) && all(sapply(v,function(elemt_rec) is_list(elemt_rec) && length(elemt_rec) == 2 &&  (is_scalar_integer(elemt_rec[[1]]) || is_scalar_double(elemt_rec[[1]])) && elemt_rec[[1]] == as.integer(elemt_rec[[1]]) &&  (is_scalar_integer(elemt_rec[[2]]) || is_scalar_double(elemt_rec[[2]])) && elemt_rec[[2]] == as.integer(elemt_rec[[2]]))))) && length(unique(names(arg2))) == length(names(arg2))))){ stop("arg arg2 wrong type") }
+        v0 <- py_dict(map(names(in_),as.integer),unname(in_))
+        v1 <- py_dict(map(names(arg2),function(a) py_builtin$bytes(a,'utf-8')),map_depth(unname(arg2),2,function(a) list(as.integer(a[[1]]),as.integer(a[[2]]))))
         private$py_obj$process214(v0, v1)
-        byref_1 <- py$transform_dict(v1)
-        byref_0 <- v0
+        v1 <- py$transform_dict(v1)
+        byref_1 <- map_depth(v1,2,as.list)
+        byref_0 <- py_to_r(v0)
     
         tryCatch({
         eval.parent(substitute(in_ <- byref_0))
@@ -819,11 +719,11 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     
         if(!(is_list(in_0) && all(sapply(in_0,function(elemt_rec)  (is_scalar_integer(elemt_rec) || is_scalar_double(elemt_rec)) && elemt_rec == as.integer(elemt_rec))))){ stop("arg in_0 wrong type") }
         if(!(is_list(in_1) && all(sapply(in_1,function(elemt_rec) is_scalar_double(elemt_rec))))){ stop("arg in_1 wrong type") }
-        v0 <- r_to_py(map(in_0,as.integer))
+        v0 <- r_to_py(modify_depth(in_0,1,as.integer))
         v1 <- r_to_py(in_1)
         private$py_obj$process23(v0, v1)
-        byref_1 <- py_to_r(v1)
-        byref_0 <- as.list(py_to_r(v0))
+        byref_1 <- map_depth(py_to_r(v1),0,as.list)
+        byref_0 <- map_depth(py_to_r(v0),0,as.list)
     
         tryCatch({
         eval.parent(substitute(in_0 <- byref_0))
@@ -936,7 +836,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     process31 = function(in_){
     
         if(!(is_list(in_) && all(sapply(in_,function(elemt_rec)  (is_scalar_integer(elemt_rec) || is_scalar_double(elemt_rec)) && elemt_rec == as.integer(elemt_rec))))){ stop("arg in_ wrong type") }
-        v0 <- r_to_py(map(in_,as.integer))
+        v0 <- r_to_py(modify_depth(in_,1,as.integer))
         py_ans = private$py_obj$process31(v0)
         
         r_ans = py_ans
@@ -947,10 +847,73 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     process32 = function(in_){
     
         if(!(is_list(in_) && all(sapply(in_,function(elemt_rec) is_list(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec)  (is_scalar_integer(elemt_rec_rec) || is_scalar_double(elemt_rec_rec)) && elemt_rec_rec == as.integer(elemt_rec_rec))))))){ stop("arg in_ wrong type") }
-        v0 <- r_to_py(in_)
+        v0 <- r_to_py(modify_depth(in_,2,as.integer))
         py_ans = private$py_obj$process32(v0)
         
         r_ans = py_ans
+        return(r_ans)
+    },
+    
+    # C++ signature: int process33(shared_ptr[Int] in_)
+    process33 = function(in_){
+    
+        if(!(all(class(in_) == c('Int','R6')))){ stop("arg in_ wrong type") }
+        input_in_ <- r_to_py(in_)
+        py_ans = private$py_obj$process33(in_)
+        r_ans = py_ans
+        return(r_ans)
+    },
+    
+    # C++ signature: shared_ptr[Int] process34(shared_ptr[Int] in_)
+    process34 = function(in_){
+    
+        if(!(all(class(in_) == c('Int','R6')))){ stop("arg in_ wrong type") }
+        input_in_ <- r_to_py(in_)
+        py_ans = private$py_obj$process34(in_)
+        r_ans = Int$new(py_ans)
+        return(r_ans)
+    },
+    
+    # C++ signature: shared_ptr[const Int] process35(shared_ptr[Int] in_)
+    process35 = function(in_){
+    
+        if(!(all(class(in_) == c('Int','R6')))){ stop("arg in_ wrong type") }
+        input_in_ <- r_to_py(in_)
+        py_ans = private$py_obj$process35(in_)
+        r_ans = Int$new(py_ans)
+        return(r_ans)
+    },
+    
+    # C++ signature: int process36(Int * in_)
+    process36 = function(in_){
+    
+        if(!(is.R6(in_) && class(in_)[1] == "Int")){ stop("arg in_ wrong type") }
+    
+        py_ans = private$py_obj$process36(in_)
+        r_ans = py_ans
+        return(r_ans)
+    },
+    
+    # C++ signature: Int * process37(Int * in_)
+    process37 = function(in_){
+    
+        if(!(is.R6(in_) && class(in_)[1] == "Int")){ stop("arg in_ wrong type") }
+    
+        py_ans = private$py_obj$process37(in_)
+        if( is.null(py_ans) ) {
+            return(NULL)
+        }
+        r_ans = Int$new(py_ans)
+        return(r_ans)
+    },
+    
+    # C++ signature: libcpp_vector[libcpp_vector[UInt]] process38(int)
+    process38 = function(in_0){
+    
+        if(!( (is_scalar_integer(in_0) || is_scalar_double(in_0)) && in_0 == as.integer(in_0))){ stop("arg in_0 wrong type") }
+    
+        py_ans = private$py_obj$process38(as.integer(in_0))
+        r_ans <- py_ans
         return(r_ans)
     }
     

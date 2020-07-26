@@ -117,14 +117,14 @@ cdef extern from "libcpp_test.hpp":
         int   process31(libcpp_vector[int] in_)
         int   process32(libcpp_vector[libcpp_vector[int]] in_)
 
-        # int   process33(shared_ptr[Int] in_)
-        # shared_ptr[Int] process34(shared_ptr[Int] in_)
-        # shared_ptr[const Int] process35(shared_ptr[Int] in_)
+        int   process33(shared_ptr[Int] in_)
+        shared_ptr[Int] process34(shared_ptr[Int] in_)
+        shared_ptr[const Int] process35(shared_ptr[Int] in_)
 
-        # int   process36(Int* in_)
-        # Int*   process37(Int* in_)
+        int   process36(Int* in_)
+        Int*   process37(Int* in_)
 
-        # libcpp_vector[libcpp_vector[UInt]] process38(int)
+        libcpp_vector[libcpp_vector[UInt]] process38(int)
 
         # # Wrap a const return value
         # const Int* process39(Int* in_)

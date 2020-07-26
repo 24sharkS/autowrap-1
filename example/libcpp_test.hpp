@@ -361,7 +361,7 @@ class LibCppTest {
             return in;
         }
 
-        std::vector<std::vector<unsigned int> > process38(int x) 
+        std::vector<std::vector<unsigned int> > process38(int x)
         {
             std::vector<std::vector<unsigned int> > res;
             std::vector<unsigned int> res_inner;
