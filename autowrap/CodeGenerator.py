@@ -625,10 +625,10 @@ class CodeGenerator(object):
         docstrings = "\n"
         for method in methods:
             # Prepare docstring
-            docstrings += " " * 8 + "  # C++ signature: %s" % method
+            docstrings += " " * 4 + "# C++ signature: %s" % method
             extra_doc = method.cpp_decl.annotations.get("wrap-doc", "")
             if len(extra_doc) > 0:
-                docstrings += "\n" + " " * 12 + "# "+extra_doc
+                docstrings += "\n" + " " * 8 + "# "+extra_doc
             docstrings += "\n"
 
         method_code.add("""
@@ -664,7 +664,13 @@ class CodeGenerator(object):
                             """, locals())
             first_iteration = False
 
-        if for_cons == True and r_classname is not None:
+        if for_cons is None:
+            method_code.add(""" 
+                            |    else {
+                            |          stop("wrong arguments provided")
+                            |    }     
+                            """, locals())
+        elif for_cons == True and r_classname is not None:
             method_code.add("""    else{
                             |           # to create a new R object and set its underlying python object as the one supplied in the constructor.
                             |           # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct fashion.
@@ -727,18 +733,18 @@ class CodeGenerator(object):
             # -> 2) force method renaming
             codes = []
             dispatched_m_names = []
-            total_method_count -= len(methods)
+            meth_cnt -= len(methods)
             for (i, method) in enumerate(methods):
-                dispatched_m_name = "_%s_%d" % (py_name, i)
+                dispatched_m_name = "%s_%d" % (py_name, i)
                 dispatched_m_names.append(dispatched_m_name)
-                total_method_count += 1
                 code = self.create_wrapper_for_nonoverloaded_method(cdcl,
                                                                     dispatched_m_name,
-                                                                    method,meth_cnt,total_method_count)
+                                                                    method,meth_cnt,total_method_count,from_overloaded = True)
                 codes.append(code)
 
             code = self._create_overloaded_method_decl(py_name, dispatched_m_names, methods, True)
             codes.append(code)
+            meth_cnt += len(methods)
             if meth_cnt == total_method_count:
                 codes.append(Code.Code().add("""
                    |
@@ -964,7 +970,7 @@ class CodeGenerator(object):
                 """)
         return code
 
-    def create_wrapper_for_nonoverloaded_method(self, cdcl, py_name, method,meth_cnt,total_method_count):
+    def create_wrapper_for_nonoverloaded_method(self, cdcl, py_name, method,meth_cnt,total_method_count,from_overloaded = None):
 
         L.info("   create wrapper for %s ('%s')" % (py_name, method))
         # Here added code for the method.
@@ -977,7 +983,10 @@ class CodeGenerator(object):
         # call wrapped method and convert result value back to R
         cpp_name = method.cpp_decl.name
         call_args_str = ", ".join(call_args)
-        cy_call_str = "private$py_obj$%s(%s)" % (py_name, call_args_str)
+        if from_overloaded is True:
+            cy_call_str = "private$py_obj$`_%s`(%s)" % (py_name, call_args_str)
+        else:
+            cy_call_str = "private$py_obj$%s(%s)" % (py_name, call_args_str)
         # cy_call_str = "private$py_obj$%s(%s)" % (cpp_name, call_args_str)
 
         res_t = method.result_type
@@ -1272,7 +1281,7 @@ class CodeGenerator(object):
             cons_code.add("""
                |
                |    private$$py_obj <- Pymod$$$name($call_args_str)
-               |    return(self)
+               |    invisible()
                |
                 """, locals())
         else:
@@ -1280,7 +1289,7 @@ class CodeGenerator(object):
                 cons_code.add("""
                    |
                    |    private$$py_obj <- Pymod$$$name($call_args_str)
-                   |    return(self)
+                   |    invisible()
                    |    }
                     """, locals())
 

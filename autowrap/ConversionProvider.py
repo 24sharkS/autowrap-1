@@ -1918,7 +1918,7 @@ class StdVectorConverter(TypeConverterBase):
 
         tt, = cpp_type.template_args
         inner = self.converters.cython_type(tt)
-        inner_conv = self.converters.get(tt)
+        depth_cnt = 1
 
         if inner.is_enum:
             it = mangle("it_" + input_r_var)
@@ -1973,19 +1973,43 @@ class StdVectorConverter(TypeConverterBase):
 
         else:
             # cython cares for conversion of stl containers with std types:
-            if isinstance(inner_conv,StdStringConverter):
-                code = Code().add("""
-                    |$output_r_var <- map($input_r_var,as.character)
-                    """, locals())
-            elif isinstance(inner_conv,IntegerConverter):
-                code = Code().add("""
-                    |$output_r_var <- map($input_r_var,as.integer)
-                    """, locals())
-            else:
-                code = Code().add("""
-                    |$output_r_var <- $input_r_var
-                    """, locals())
+            k = tt
+            while k.base_type == "libcpp_vector":
+                depth_cnt += 1
+                k, = k.template_args
 
+            is_converter_present = True
+
+            try:
+                inner_conv = self.converters.get(k)
+            except:
+                inner_conv = k.base_type
+                is_converter_present = False
+
+            if is_converter_present:
+                if isinstance(inner_conv, StdStringConverter):
+                    code = Code().add("""
+                        |$output_r_var <- modify_depth($input_r_var,$depth_cnt,as.character)
+                        """, locals())
+                elif isinstance(inner_conv, (IntegerConverter, FloatConverter, DoubleConverter, EnumConverter)):
+                    depth_cnt -= 1
+                    code = Code().add("""
+                        |$output_r_var <- modify_depth($input_r_var,$depth_cnt,as.list)
+                        """, locals())
+                else:
+                    code = Code().add("""
+                        |$output_r_var <- $input_r_var
+                        """, locals())
+            else:
+                if inner_conv in ["UInt"]:
+                    depth_cnt-=1
+                    code = Code().add("""
+                        |$output_r_var <- modify_depth($input_r_var,$depth_cnt,as.list)
+                        """, locals())
+                else:
+                    code = Code().add("""
+                        |$output_r_var <- $input_r_var
+                        """, locals())
             return code
 
 

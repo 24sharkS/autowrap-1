@@ -126,11 +126,11 @@ cdef extern from "libcpp_test.hpp":
 
         libcpp_vector[libcpp_vector[UInt]] process38(int)
 
-        # # Wrap a const return value
-        # const Int* process39(Int* in_)
+        # Wrap a const return value
+        const Int* process39(Int* in_)
 
-        # # Wrap an abstract base class
-        # # int process40(AbstractBaseClass* in_)
-        # int process40(ABS_Impl1* in_)
-        # int process40(ABS_Impl2* in_)
+        # Wrap an abstract base class
+        # int process40(AbstractBaseClass* in_)
+        int process40(ABS_Impl1* in_)
+        int process40(ABS_Impl2* in_)
 

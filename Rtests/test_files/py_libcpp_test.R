@@ -49,13 +49,13 @@ ABS_Impl1 <- R6Class(classname = "ABS_Impl1",cloneable = FALSE,
     
     
         private$py_obj <- Pymod$ABS_Impl1(as.integer(i))
-        return(self)
+        invisible()
     
     
     },
     
-          # C++ signature: void ABS_Impl1()
-          # C++ signature: void ABS_Impl1(int i)
+    # C++ signature: void ABS_Impl1()
+    # C++ signature: void ABS_Impl1(int i)
     initialize = function(...){
         arg_list = list(...)
         if (length(arg_list)==0) { self$init_0(...) }
@@ -106,13 +106,13 @@ ABS_Impl2 <- R6Class(classname = "ABS_Impl2",cloneable = FALSE,
     
     
         private$py_obj <- Pymod$ABS_Impl2(as.integer(i))
-        return(self)
+        invisible()
     
     
     },
     
-          # C++ signature: void ABS_Impl2()
-          # C++ signature: void ABS_Impl2(int i)
+    # C++ signature: void ABS_Impl2()
+    # C++ signature: void ABS_Impl2(int i)
     initialize = function(...){
         arg_list = list(...)
         if (length(arg_list)==0) { self$init_0(...) }
@@ -172,7 +172,7 @@ Int <- R6Class(classname = "Int",cloneable = FALSE,
     
     
         private$py_obj <- Pymod$Int(as.integer(i))
-        return(self)
+        invisible()
     
     
     },
@@ -184,13 +184,13 @@ Int <- R6Class(classname = "Int",cloneable = FALSE,
     
     
         private$py_obj <- Pymod$Int(i)
-        return(self)
+        invisible()
     
     
     },
     
-          # C++ signature: void Int(int i)
-          # C++ signature: void Int(Int & i)
+    # C++ signature: void Int(int i)
+    # C++ signature: void Int(Int & i)
     initialize = function(...){
         arg_list = list(...)
         if ((length(arg_list)==1) && ( (is_scalar_integer(arg_list[[1]]) || is_scalar_double(arg_list[[1]])) && arg_list[[1]] == as.integer(arg_list[[1]]))) { self$init_0(...) }
@@ -229,7 +229,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     
     
         private$py_obj <- Pymod$LibCppTest()
-        return(self)
+        invisible()
     
     
     },
@@ -241,13 +241,13 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     
     
         private$py_obj <- Pymod$LibCppTest(as.integer(ii))
-        return(self)
+        invisible()
     
     
     },
     
-          # C++ signature: void LibCppTest()
-          # C++ signature: void LibCppTest(int ii)
+    # C++ signature: void LibCppTest()
+    # C++ signature: void LibCppTest(int ii)
     initialize = function(...){
         arg_list = list(...)
         if (length(arg_list)==0) { self$init_0(...) }
@@ -295,7 +295,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
         v0 <- r_to_py(modify_depth(in_0,1,as.integer))
         py_ans = private$py_obj$process(v0)
         byref_0 <- map_depth(py_to_r(v0),0,as.list)
-        r_ans <- map(py_ans,as.integer)
+        r_ans <- modify_depth(py_ans,0,as.list)
     
         tryCatch({
         eval.parent(substitute(in_0 <- byref_0))
@@ -913,11 +913,55 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
         if(!( (is_scalar_integer(in_0) || is_scalar_double(in_0)) && in_0 == as.integer(in_0))){ stop("arg in_0 wrong type") }
     
         py_ans = private$py_obj$process38(as.integer(in_0))
-        r_ans <- py_ans
+        r_ans <- modify_depth(py_ans,1,as.list)
         return(r_ans)
-    }
+    },
     
-        )
+    # C++ signature: const Int * process39(Int * in_)
+    process39 = function(in_){
+    
+        if(!(is.R6(in_) && class(in_)[1] == "Int")){ stop("arg in_ wrong type") }
+    
+        py_ans = private$py_obj$process39(in_)
+        if( is.null(py_ans) ) {
+            return(NULL)
+        }
+        r_ans = Int$new(py_ans)
+        return(r_ans)
+    },
+    
+    # C++ signature: int process40(ABS_Impl1 * in_)
+    process40_0 = function(in_){
+    
+        if(!(is.R6(in_) && class(in_)[1] == "ABS_Impl1")){ stop("arg in_ wrong type") }
+    
+        py_ans = private$py_obj$`_process40_0`(in_)
+        r_ans = py_ans
+        return(r_ans)
+    },
+    
+    # C++ signature: int process40(ABS_Impl2 * in_)
+    process40_1 = function(in_){
+    
+        if(!(is.R6(in_) && class(in_)[1] == "ABS_Impl2")){ stop("arg in_ wrong type") }
+    
+        py_ans = private$py_obj$`_process40_1`(in_)
+        r_ans = py_ans
+        return(r_ans)
+    },
+    
+    # C++ signature: int process40(ABS_Impl1 * in_)
+    # C++ signature: int process40(ABS_Impl2 * in_)
+    process40 = function(...){
+        arg_list = list(...)
+        if ((length(arg_list)==1) && (is.R6(arg_list[[1]]) && class(arg_list[[1]])[1] == "ABS_Impl1")) { self$process40_0(...) }
+        else if ((length(arg_list)==1) && (is.R6(arg_list[[1]]) && class(arg_list[[1]])[1] == "ABS_Impl2")) { self$process40_1(...) }
+        else {
+              stop("wrong arguments provided")
+        }
+    
+    }
+    )
 ) 
 
 EEE = R6Class(classname = "EEE", cloneable = FALSE,

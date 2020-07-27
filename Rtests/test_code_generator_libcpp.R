@@ -276,5 +276,50 @@ test_that("Testing LibCppTest Processes",{
       # return of NULL
       i1 <- Int$new(18)
       expect_equal(t$process37(i1),NULL)
+
+      # return of const ptr
+      i1 <- Int$new(1)
+      expect_equal(t$process39(i1)$i_,2)
+      expect_equal(t$process39(i1)$i_,3)
+      i2 <- Int$new(10)
+      expect_equal(t$process39(i2)$i_,11)
+
+      rval = t$process39(i2)
+      expect_equal(rval$i_,12)
+
+      #
+      # Unsigned Int
+      #
+
+      res <- t$process38(5)
+      expect_equal(length(res),2)
+      expect_equal(length(res[[1]]),1)
+      expect_equal(res[[1]][[1]],5)
+      expect_equal(res[[2]][[1]],5)
+
+      # Testing abstract base class
+      i1 <- ABS_Impl1$new(1)
+      i2 <- ABS_Impl1$new(4)
+      res = t$process40(i1)
+      expect_equal(res,1)
+      res = t$process40(i2)
+      expect_equal(res,4)
+
+      expect_equal(i1$get(),1)
+      expect_equal(i2$get(),4)
+
+      tryCatch({
+            i1 <- ABS_Impl1$new()
+            stop("Expected Expection not thrown")
+               },
+               error = function(e) invisible()
+      )
+
+      tryCatch({
+            i1 <- ABS_Impl2$new()
+            stop("Expected Expection not thrown")
+               },
+               error = function(e) invisible()
+      )
 }
 )
