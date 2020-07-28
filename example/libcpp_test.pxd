@@ -61,8 +61,8 @@ cdef extern from "libcpp_test.hpp":
         # bool operator==(LibCppTest)
         # bool operator!=(LibCppTest)
 
-        # libcpp_vector[Int] * integer_vector_ptr
-        # Int * integer_ptr
+        libcpp_vector[Int] * integer_vector_ptr
+        Int * integer_ptr
 
         int get() #wrap-as:gett wrap-doc:getting access to an integer
 

@@ -243,11 +243,12 @@ class IntegerConverter(TypeConverterBase):
         #return "isinstance(%s, (int, long))" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = ""
         call_as = "as.integer(%s)" % argument_var
         #call_as = "(<%s>%s)" % (cpp_type, argument_var)
         cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
         return "    %s = %s" % (output_py_var, input_cpp_var)
@@ -274,11 +275,12 @@ class DoubleConverter(TypeConverterBase):
         return "is_scalar_double(%s)" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = ""
         call_as = "%s" % argument_var
         #call_as = "(<%s>%s)" % (cpp_type, argument_var)
         cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
         return "    %s = %s" % (output_py_var,input_cpp_var)
@@ -305,11 +307,12 @@ class FloatConverter(TypeConverterBase):
         #return "isinstance(%s, float)" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = ""
         call_as = "%s" % argument_var
         #call_as = "(<%s>%s)" % (cpp_type, argument_var)
         cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
         return "    %s = %s" % (output_py_var,input_cpp_var)
@@ -336,11 +339,12 @@ class EnumConverter(TypeConverterBase):
         #return "%s in [%s]" % (argument_var, values)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = ""
         call_as = "%s" % argument_var
         # call_as = "(<_%s>%s)" % (cpp_type.base_type, argument_var)
         cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
         return "    %s = %s" % (output_py_var, input_cpp_var)
@@ -364,13 +368,14 @@ class CharConverter(TypeConverterBase):
 
     # not final
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
         call_as = "py$%s" % argument_var
         cleanup = "py_run_string(\"del %s\")" % argument_var
         #code = ""
         #call_as = "(<char>((%s)[0]))" % argument_var
         #cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def call_method(self, res_type, cy_call_str):
         return "py_ans = %s" % cy_call_str
@@ -398,13 +403,14 @@ class ConstCharPtrConverter(TypeConverterBase):
         #return "isinstance(%s, bytes)" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
         call_as = "py%s" % argument_var
         cleanup = "py_run_string(\"del %s\")" % argument_var
         # code = Code().add("cdef const_char * input_%s = <const_char *> %s" % (argument_var, argument_var))
         # call_as = "input_%s" % argument_var
         # cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def call_method(self, res_type, cy_call_str):
         return "py_ans = %s" % cy_call_str
@@ -433,13 +439,14 @@ class CharPtrConverter(TypeConverterBase):
         #return "isinstance(%s, bytes)" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
         call_as = "%s" % argument_var
         cleanup = "py_run_string(\"del %s\")" % argument_var
         # code = ""
         # call_as = "(<char *>%s)" % argument_var
         # cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def call_method(self, res_type, cy_call_str):
         return "py_ans = %s" % cy_call_str
@@ -472,6 +479,7 @@ class TypeToWrapConverter(TypeConverterBase):
         #return "isinstance(%s, %s)" % (argument_var, cpp_type.base_type)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = ""
         call_as = "%s" % (argument_var, )
         cy_type = self.converters.cython_type(cpp_type)
@@ -482,7 +490,7 @@ class TypeToWrapConverter(TypeConverterBase):
         #     call_as = "(deref(%s.inst.get()))" % (argument_var, )
 
         cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def call_method(self, res_type, cy_call_str):
         t = self.converters.cython_type(res_type)
@@ -499,12 +507,7 @@ class TypeToWrapConverter(TypeConverterBase):
 
             # If t is a pointer, we would like to call on the base type
             t = t.base_type
-            code = Code().add("""
-                |py_ans = $cy_call_str
-                |if( is.null(py_ans) ) {
-                |    return(NULL)
-                |}
-                """, locals())
+            code = "py_ans = %s ; if( is.null(py_ans) ) { return(NULL) }" % cy_call_str
             return code
 
         return "py_ans = %s" % (cy_call_str)
@@ -903,7 +906,7 @@ class StdMapConverter(TypeConverterBase):
                     value_conv = "unname(%s)" % argument_var
         elif tt_value in self.converters:
             value  = "unname(%s)" % argument_var
-            value_conv_code, value_conv, value_conv_cleanup = \
+            value_conv_code, value_conv, value_conv_cleanup, cr_ref = \
                 self.converters.get(tt_value).input_conversion(tt_value, value, 0)
         else:
             value_conv = "unname(%s)" % argument_var
@@ -919,7 +922,7 @@ class StdMapConverter(TypeConverterBase):
             key_conv = "map(names(%s),function(a) py_builtin$bytes(a,'utf-8'))" % argument_var
         elif tt_key in self.converters:
             key = "names(%s)" % argument_var
-            key_conv_code, key_conv, key_conv_cleanup = \
+            key_conv_code, key_conv, key_conv_cleanup, cr_ref = \
                 self.converters.get(tt_key).input_conversion(tt_key, key, 0)
         else:
             key_conv = "names(%s)" % argument_var
@@ -2025,14 +2028,14 @@ class StdStringConverter(TypeConverterBase):
         return "bytes"
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = "%s_%s = py_builtin$$bytes(%s,'utf-8')" % (argument_var,arg_num,argument_var)
         call_as = "%s" % argument_var
         cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def type_check_expression(self, cpp_type, argument_var):
         return "is_scalar_character(%s)" % argument_var
-        #return "isinstance(%s, bytes)" % argument_var
 
     def output_conversion(self, cpp_type, input_cpp_var, output_py_var):
         # input_cpp_var : input_py_var
@@ -2048,6 +2051,7 @@ class StdStringUnicodeConverter(StdStringConverter):
         return ""
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
+        cr_ref = False
         code = Code()
         code.add("""
             |$argument_var = py_builtin$$bytes($argument_var,'utf-8')
@@ -2058,7 +2062,7 @@ class StdStringUnicodeConverter(StdStringConverter):
         #     """, locals())
         call_as = "%s" % argument_var
         cleanup = ""
-        return code, call_as, cleanup
+        return code, call_as, cleanup, cr_ref
 
     def type_check_expression(self, cpp_type, argument_var):
         return "is_scalar_character(%s)" % argument_var
@@ -2105,7 +2109,7 @@ class SharedPtrConverter(TypeConverterBase):
         code = Code().add("""
             |input_$argument_var <- r_to_py($argument_var)
             """, locals())
-        call_as = "%s" % argument_var
+        call_as = "input_%s" % argument_var
         #call_as = "input_" + argument_var
         cleanup = ""
         # Put the pointer back if we pass by reference
@@ -2113,7 +2117,7 @@ class SharedPtrConverter(TypeConverterBase):
         if cpp_type.is_ref and not cpp_type.is_const:
             cr_ref = True
             cleanup = Code().add("""
-                |$argument_var.inst = py_to_r(input_$argument_var)
+                |byref_${arg_num} = py_to_r(input_$argument_var)
                 """, locals())
         return code, call_as, cleanup, cr_ref
 

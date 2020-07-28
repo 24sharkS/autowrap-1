@@ -1,30 +1,28 @@
 library(reticulate)
-listDepth <- plotrix::listDepth
-library(purrr)
-check.numeric <- varhandle::check.numeric
 library(R6)
-Pymod <- import("py_libcpp_test")
-py_run_string("import gc")
-copy <- import("copy")
-py_builtin <- import_builtins()
+library(purrr)
+listDepth <- plotrix::listDepth
+check.numeric <- varhandle::check.numeric
+Pymod <- reticulate::import("py_libcpp_test")
+reticulate::py_run_string("import gc")
+copy <- reticulate::import("copy")
+py_builtin <- reticulate::import_builtins()
 
+# R6 class object conversion to python class object.
 `r_to_py.R6` <- function(i,...){
    tryCatch({
        i$.__enclos_env__$private$py_obj
-   }, error = function(e) { "Conversion not supported for this R6 Class"}
+   }, error = function(e) { "conversion not supported for this class"}
    )
 }
 
-cast_names_list <- function(i){
-   if (all(check.numeric(i))) return(as.numeric(i))
-   return(i)
-}
+# python function to convert a python dict having byte type key to R named list with names as string.
+py_run_string(paste("def transform_dict(d):","    return dict(zip([k.decode('utf-8') for k in d.keys()], list(d.values())))",sep = "\n"))
 
+# Returns the name of wrapper R6 class
 class_to_wrap <- function(py_ob){
        strsplit(class(py_ob)[1],"\\.")[[1]][2]
-}
-
-py_run_string(paste("def transform_dict(d):","    return dict(zip([k.decode('utf-8') for k in d.keys()], list(d.values())))",sep = "\n")) 
+} 
     
 # R implementation of _ABS_Impl1
 ABS_Impl1 <- R6Class(classname = "ABS_Impl1",cloneable = FALSE,
@@ -148,10 +146,12 @@ Int <- R6Class(classname = "Int",cloneable = FALSE,
 
     active = list(
         i_ = function(i_){
-            if(!missing(i_)){
-                if(!( (is_scalar_integer(i_) || is_scalar_double(i_)) && i_ == as.integer(i_))){ stop("arg i_ wrong type") }
+    
+        if(!missing(i_)){
+            if(!( (is_scalar_integer(i_) || is_scalar_double(i_)) && i_ == as.integer(i_))){ stop("arg i_ wrong type") }
         
-                   private$py_obj$i_ <- as.integer(i_)
+        
+            private$py_obj$i_ <- as.integer(i_)
             } else {
         
                 py_ans = private$py_obj$i_
@@ -220,6 +220,48 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
 
     private = list(py_obj = NA),
 
+
+    active = list(
+        integer_vector_ptr = function(integer_vector_ptr){
+    
+        if(!missing(integer_vector_ptr)){
+            if(!(is_list(integer_vector_ptr) && all(sapply(integer_vector_ptr,function(elemt_rec) is.R6(elemt_rec) && class(elemt_rec)[1] == "Int")))){ stop("arg integer_vector_ptr wrong type") }
+        
+            v0 <- r_to_py(integer_vector_ptr)
+            private$py_obj$integer_vector_ptr <- v0
+            } else {
+            
+            if (is.null(private$py_obj$integer_vector_ptr)) {
+               stop("Cannot access NULL pointer")
+            }
+            else {
+                py_ans = private$py_obj$integer_vector_ptr
+            r_result = map(py_ans,function(i) eval(parse(text = paste0(class_to_wrap(i),"$","new(i)"))))
+                return(r_result)
+                }
+            }
+        },
+        integer_ptr = function(integer_ptr){
+    
+        if(!missing(integer_ptr)){
+            if(!(is.R6(integer_ptr) && class(integer_ptr)[1] == "Int")){ stop("arg integer_ptr wrong type") }
+        
+        
+            private$py_obj$integer_ptr <- integer_ptr
+            } else {
+        
+            if (is.null(private$py_obj$integer_ptr)) {
+               stop("Cannot access NULL pointer")
+            }
+            else {
+                py_ans = private$py_obj$integer_ptr ; if( is.null(py_ans) ) { return(NULL) }
+            r_result = Int$new(py_ans)
+                return(r_result)
+                }
+            }
+        }
+
+    ),
     
     public = list(
     
@@ -859,7 +901,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     
         if(!(all(class(in_) == c('Int','R6')))){ stop("arg in_ wrong type") }
         input_in_ <- r_to_py(in_)
-        py_ans = private$py_obj$process33(in_)
+        py_ans = private$py_obj$process33(input_in_)
         r_ans = py_ans
         return(r_ans)
     },
@@ -869,7 +911,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     
         if(!(all(class(in_) == c('Int','R6')))){ stop("arg in_ wrong type") }
         input_in_ <- r_to_py(in_)
-        py_ans = private$py_obj$process34(in_)
+        py_ans = private$py_obj$process34(input_in_)
         r_ans = Int$new(py_ans)
         return(r_ans)
     },
@@ -879,7 +921,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     
         if(!(all(class(in_) == c('Int','R6')))){ stop("arg in_ wrong type") }
         input_in_ <- r_to_py(in_)
-        py_ans = private$py_obj$process35(in_)
+        py_ans = private$py_obj$process35(input_in_)
         r_ans = Int$new(py_ans)
         return(r_ans)
     },
@@ -899,10 +941,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     
         if(!(is.R6(in_) && class(in_)[1] == "Int")){ stop("arg in_ wrong type") }
     
-        py_ans = private$py_obj$process37(in_)
-        if( is.null(py_ans) ) {
-            return(NULL)
-        }
+        py_ans = private$py_obj$process37(in_) ; if( is.null(py_ans) ) { return(NULL) }
         r_ans = Int$new(py_ans)
         return(r_ans)
     },
@@ -922,10 +961,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     
         if(!(is.R6(in_) && class(in_)[1] == "Int")){ stop("arg in_ wrong type") }
     
-        py_ans = private$py_obj$process39(in_)
-        if( is.null(py_ans) ) {
-            return(NULL)
-        }
+        py_ans = private$py_obj$process39(in_) ; if( is.null(py_ans) ) { return(NULL) }
         r_ans = Int$new(py_ans)
         return(r_ans)
     },

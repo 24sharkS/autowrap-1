@@ -248,6 +248,33 @@ test_that("Testing LibCppTest Processes",{
       expect_equal(i2$i_,12)
       expect_equal(i3$i_,12)
 
+      tryCatch({
+            expect_equal(t$integer_ptr,NULL)
+            fail()
+               }, error = function(e) { #Should throw an exception
+               succeed()
+               }
+      )
+
+      i1 <- Int$new(1)
+      i2 <- Int$new(2)
+      i3 <- Int$new(3)
+      t$integer_ptr <- i1
+      expect_equal(t$integer_ptr$i_,1)
+      t$integer_ptr <- i2
+      expect_equal(t$integer_ptr$i_,2)
+
+      tryCatch({
+            expect_equal(t$integer_vector_ptr,NULL)
+            fail()
+               }, error = function(e) { #Should throw an exception
+               succeed()
+               }
+      )
+
+      t$integer_vector_ptr <- list(i1,i2,i3)
+      expect_equal(length(t$integer_vector_ptr),3)
+
       # process 35
       i1 <- Int$new(20)
       i2 <- t$process35(i1)
@@ -321,5 +348,6 @@ test_that("Testing LibCppTest Processes",{
                },
                error = function(e) invisible()
       )
+
 }
 )

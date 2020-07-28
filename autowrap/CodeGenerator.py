@@ -208,32 +208,6 @@ class CodeGenerator(object):
 
         # Modifying create_includes function to import packages and create python module.
         self.create_includes()
-        new_code = Code.Code()
-        new_code.add("""
-                |Pymod <- import("%s")
-                |py_run_string("import gc")
-                |copy <- import("copy")
-                |py_builtin <- import_builtins()
-                |
-                |`r_to_py.R6` <- function(i,...){
-                |   tryCatch({
-                |       i$$.__enclos_env__$$private$$py_obj
-                |   }, error = function(e) { "Conversion not supported for this R6 Class"}
-                |   )
-                |}
-                |
-                |cast_names_list <- function(i){
-                |   if (all(check.numeric(i))) return(as.numeric(i)) 
-                |   return(i)
-                |}
-                |
-                |class_to_wrap <- function(py_ob){
-                |       strsplit(class(py_ob)[1],"\\\.")[[1]][2]
-                |}
-                |
-                |py_run_string(paste("def transform_dict(d):","    return dict(zip([k.decode('utf-8') for k in d.keys()], list(d.values())))",sep = "\\n"))
-                """ % self.r_target_path.split('.R')[0])
-        self.top_level_code.append(new_code)
 
         def create_for(clz, method):
             for resolved in self.resolved:
@@ -784,10 +758,7 @@ class CodeGenerator(object):
             converter.cr = self.cr
             py_type = converter.matching_python_type(t)
             cr_ref = False
-            if converter.get_base_types()[0] in ["libcpp_pair","libcpp_set","libcpp_vector","libcpp_map","shared_ptr"]:
-                conv_code, call_as, cleanup, cr_ref = converter.input_conversion(t, n, arg_num)
-            else:
-                conv_code, call_as, cleanup = converter.input_conversion(t, n, arg_num)
+            conv_code, call_as, cleanup, cr_ref = converter.input_conversion(t, n, arg_num)
             if(cr_ref):
                 store_ref_arg.append((n,arg_num))
             py_signature_parts.append("%s" % (n))
@@ -871,7 +842,7 @@ class CodeGenerator(object):
         converter = self.cr.get(t)
         py_type = converter.matching_python_type(t)
         type_check = converter.type_check_expression(t,name)
-        conv_code, call_as, cleanup = converter.input_conversion(t, name, 0)
+        conv_code, call_as, cleanup,cr_ref = converter.input_conversion(t, name, 0)
 
         if wrap_constant:
             code.add("""
@@ -889,7 +860,8 @@ class CodeGenerator(object):
         else:
             code.add("""
                 |    $name = function($name){
-                |        if(!missing($name)){
+                |
+                |    if(!missing($name)){
                 """, locals())
             # code.add("""
             #     |    def __set__(self, $py_type $name):
@@ -898,13 +870,14 @@ class CodeGenerator(object):
             # TODO: add mit indent level
             indented = Code.Code()
             indented.add("""
-                       |        if(!(%s)){ stop(\"arg %s wrong type\") }
+                       |    if(!(%s)){ stop(\"arg %s wrong type\") }
+                       |
                        """ % (type_check, name))
             indented.add(conv_code)
             code.add(indented)
 
             code.add("""
-                |               private$$py_obj$$$name <- $call_as
+                |        private$$py_obj$$$name <- $call_as
                 |        } else {
                 """, locals())
             indented = Code.Code()
@@ -916,7 +889,7 @@ class CodeGenerator(object):
             code.add(indented)
 
         to_r_code = converter.output_conversion(t, "py_ans", "r_result")
-        access_stmt = converter.call_method(t, """private$$py_obj$$%s""" % name)
+        access_stmt = converter.call_method(t,"""private$$py_obj$$%s""" % name)
 
         cy_type = self.cr.cython_type(t)
 
@@ -1623,64 +1596,13 @@ class CodeGenerator(object):
 
         self.top_level_code.append(code)
 
-    def create_cimports(self):
-        self.create_std_cimports()
-        code = Code.Code()
-        for resolved in self.all_resolved:
-            import_from = resolved.pxd_import_path
-            name = resolved.name
-            if resolved.__class__ in (ResolvedEnum,):
-                code.add("from $import_from cimport $name as _$name", locals())
-            elif resolved.__class__ in (ResolvedClass, ):
-                name = resolved.cpp_decl.name
-                code.add("from $import_from cimport $name as _$name", locals())
-            elif resolved.__class__ in (ResolvedFunction, ):
-                # Ensure the name the original C++ name (and not the Python display name)
-                name = resolved.cpp_decl.name
-                mangled_name = "_" + name + "_" + import_from
-                code.add("from $import_from cimport $name as $mangled_name", locals())
-            elif resolved.__class__ in (ResolvedTypeDef, ):
-                code.add("from $import_from cimport $name", locals())
-
-        self.top_level_code.append(code)
+    # def create_cimports(self):
+    #     self.create_std_cimports()
+    #
+    #     self.top_level_code.append(code)
 
     def create_default_cimports(self):
         code = Code.Code()
-        # Using embedsignature here does not help much as it is only the Python
-        # signature which does not really specify the argument types. We have
-        # to use a docstring for each method.
-        code.add("""
-                   |#cython: c_string_encoding=ascii  # for cython>=0.19
-                   |#cython: embedsignature=False
-                   |from  libcpp.string  cimport string as libcpp_string
-                   |from  libcpp.string  cimport string as libcpp_utf8_string
-                   |from  libcpp.string  cimport string as libcpp_utf8_output_string
-                   |from  libcpp.set     cimport set as libcpp_set
-                   |from  libcpp.vector  cimport vector as libcpp_vector
-                   |from  libcpp.pair    cimport pair as libcpp_pair
-                   |from  libcpp.map     cimport map  as libcpp_map
-                   |from  libcpp cimport bool
-                   |from  libc.string cimport const_char
-                   |from cython.operator cimport dereference as deref,
-                   + preincrement as inc, address as address
-                   """)
-        if self.include_refholder:
-            code.add("""
-                   |from  AutowrapRefHolder cimport AutowrapRefHolder
-                   |from  AutowrapPtrHolder cimport AutowrapPtrHolder
-                   |from  AutowrapConstPtrHolder cimport AutowrapConstPtrHolder
-                   """)
-        if self.include_shared_ptr:
-            code.add("""
-                   |from  smart_ptr cimport shared_ptr
-                   """)
-        if self.include_numpy:
-            code.add("""
-                   |cimport numpy as np
-                   |import numpy as np
-                   |cimport numpy as numpy
-                   |import numpy as numpy
-                   """)
 
         return code
 
@@ -1694,17 +1616,38 @@ class CodeGenerator(object):
         return code
 
     def create_includes(self):
-        code = Code.Code()
-        code.add("""
+        packages = Code.Code()
+        packages.add("""
                 |library(reticulate)
-                |listDepth <- plotrix::listDepth
-                |library(purrr)
-                |check.numeric <- varhandle::check.numeric
                 |library(R6)
+                |library(purrr)
+                |listDepth <- plotrix::listDepth
+                |check.numeric <- varhandle::check.numeric
                 """)
-        # code.add("""
-        #         |cdef extern from "autowrap_tools.hpp":
-        #         |    char * _cast_const_away(char *)
-        #         """)
+        self.top_level_code.append(packages)
 
-        self.top_level_code.append(code)
+        helper = Code.Code()
+        lib = "pyopenms" if "openms" in self.r_target_path.split('.R')[0].lower() else self.r_target_path.split('.R')[0]
+        helper.add("""
+                |Pymod <- reticulate::import("%s")
+                |reticulate::py_run_string("import gc")
+                |copy <- reticulate::import("copy")
+                |py_builtin <- reticulate::import_builtins()
+                |
+                |# R6 class object conversion to python class object.
+                |`r_to_py.R6` <- function(i,...){
+                |   tryCatch({
+                |       i$$.__enclos_env__$$private$$py_obj
+                |   }, error = function(e) { "conversion not supported for this class"}
+                |   )
+                |}
+                |
+                |# python function to convert a python dict having byte type key to R named list with names as string.
+                |py_run_string(paste("def transform_dict(d):","    return dict(zip([k.decode('utf-8') for k in d.keys()], list(d.values())))",sep = "\\n"))
+                |
+                |# Returns the name of wrapper R6 class
+                |class_to_wrap <- function(py_ob){
+                |       strsplit(class(py_ob)[1],"\\\.")[[1]][2]
+                |}
+                """ % lib)
+        self.top_level_code.append(helper)
