@@ -1632,7 +1632,7 @@ class CodeGenerator(object):
                 |Pymod <- reticulate::import("%s")
                 |reticulate::py_run_string("import gc")
                 |copy <- reticulate::import("copy")
-                |py_builtin <- reticulate::import_builtins()
+                |py_builtin <- reticulate::import_builtins(convert = F)
                 |
                 |# R6 class object conversion to python class object.
                 |`r_to_py.R6` <- function(i,...){

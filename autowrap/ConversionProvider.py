@@ -1128,7 +1128,7 @@ class StdSetConverter(TypeConverterBase):
 
         if isinstance(inner_conv,TypeToWrapConverter):
             return Code().add("""
-              |is_list($arg_var) && all(sapply($arg_var,function(el) $inner_check)) && length($arg_var) == py_builtin$$$$len(py_builtin$$$$set(r_to_py($arg_var)))
+              |is_list($arg_var) && all(sapply($arg_var,function(el) $inner_check)) && length($arg_var) == py_to_r(py_builtin$$$$len(py_builtin$$$$set($arg_var)))
               """, locals()).render()
         else:
             return Code().add("""

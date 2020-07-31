@@ -1,4 +1,5 @@
 context("Testing R code generated for libcpp_test")
+
 source("./test_files/py_libcpp_test.R")
 
 test_that("Test Copy constructors",{
@@ -13,13 +14,6 @@ test_that("Test Copy constructors",{
       int_wrpcpy$i_ <- 2
       expect_identical(int_wrp$i_,2L)
       expect_identical(int_wrpcpy$i_,2L)
-      
-      # Make real copy (deepcopy)
-      #int_wrp3 <- Int$new(int_wrp$.__enclos_env__$private$py_obj)
-      #int_wrp3$i_ <- 5
-      #expect_identical(int_wrp3$i_,5L)
-      #expect_identical(int_wrp$i_,2L)
-      #expect_identical(int_wrpcpy$i_,2L)
 
       # Make real copy using copy constructor
       int_wrp4 <- Int$new(int_wrp)
@@ -27,13 +21,19 @@ test_that("Test Copy constructors",{
       expect_identical(int_wrp4$i_,6L)
       expect_identical(int_wrp$i_,2L)
       expect_identical(int_wrpcpy$i_,2L)
-      
+
+      # Make real copy (deepcopy)
+      #int_wrp3 <- Int$new(int_wrp$.__enclos_env__$private$py_obj)
+      #int_wrp3$i_ <- 5
+      #expect_identical(int_wrp3$i_,5L)
+      #expect_identical(int_wrp$i_,2L)
+      #expect_identical(int_wrpcpy$i_,2L)
+
       # changing one should change the other
       int_wrpcpy$i_ <- 1
       expect_identical(int_wrp$i_,1L)
       expect_identical(int_wrpcpy$i_,1L)
-      
-      
+
     }
   )
 

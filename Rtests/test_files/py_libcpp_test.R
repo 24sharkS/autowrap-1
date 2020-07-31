@@ -6,7 +6,7 @@ check.numeric <- varhandle::check.numeric
 Pymod <- reticulate::import("py_libcpp_test")
 reticulate::py_run_string("import gc")
 copy <- reticulate::import("copy")
-py_builtin <- reticulate::import_builtins()
+py_builtin <- reticulate::import_builtins(convert = F)
 
 # R6 class object conversion to python class object.
 `r_to_py.R6` <- function(i,...){
@@ -520,7 +520,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: libcpp_set[LibCppTest] process11(libcpp_set[LibCppTest] &)
     process11 = function(in_0){
     
-        if(!(is_list(in_0) && all(sapply(in_0,function(el) is.R6(el) && class(el)[1] == "LibCppTest")) && length(in_0) == py_builtin$len(py_builtin$set(r_to_py(in_0))))){ stop("arg in_0 wrong type") }
+        if(!(is_list(in_0) && all(sapply(in_0,function(el) is.R6(el) && class(el)[1] == "LibCppTest")) && length(in_0) == py_to_r(py_builtin$len(py_builtin$set(in_0))))){ stop("arg in_0 wrong type") }
         py$v0 <- lapply(in_0,function(item0) item0$.__enclos_env__$private$py_obj)
         py_run_string("v0 = set(v0)")
         py_ans = private$py_obj$process11(py$v0)
