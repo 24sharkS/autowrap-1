@@ -214,4 +214,3 @@ def run(pxds, addons, converters, out, extra_inc_dirs=None, extra_opts=None):
     decls, instance_map = parse(pxds, ".")
     return create_wrapper_code(decls, instance_map, addons, converters, out, extra_inc_dirs,
                                extra_opts)
-main()

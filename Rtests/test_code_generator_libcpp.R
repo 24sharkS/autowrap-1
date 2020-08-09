@@ -112,70 +112,75 @@ test_that("Testing LibCppTest Processes",{
 
       # process 12
       out <- t$process12(1,2.0)
-      expect_identical(out,list("1"=2.0))
+      expect_identical(out$get(1L),2)
+      #expect_identical(out,list("1"=2.0))
 
       # process 13
       out <- t$process13(EEE$new()$A,2)
-      print(out)
-      p13 <- list(2)
-      names(p13) <- EEE$new()$A
-      print(p13)
-      print(unlist(out) == unlist(p13))
-      expect_equivalent(out,p13)
+      out$as_list()
+      expect_equivalent(unlist(out$keys()),EEE$new()$A)
+      expect_equivalent(unlist(out$values()),2L)
 
       # process 14
       out <- t$process14(EEE$new()$A,3)
-      expect_equivalent(out,list("3" = EEE$new()$A))
+      expect_true(out$has(3L))
+      expect_equivalent(out$get(3L),EEE$new()$A)
 
       # process 15
       out <- t$process15(12)
-      k <- as.integer(names(out));v <- unname(out)[[1]]
-      expect_equivalent(k,12L)
+      expect_true(out$has(12L))
+      v <- out$get(12L)
       expect_equivalent(v$gett(),12L)
 
       # process 16
-      expect_equivalent(t$process16(list("42"=2.0,"12"=1.0)),2.0)
+      expect_equivalent(t$process16(collections::dict(c(2.0,1.0),c(42L,12L))),2.0)
 
       # process 17
-      p17 <- list(2.0,1.0)
-      names(p17) <- c(EEE$new()$A,EEE$new()$B)
+      p17 <- collections::dict(c(2.0,1.0),c(EEE$new()$A,EEE$new()$B))
       expect_equivalent(t$process17(p17),2.0)
 
       # process 18
-      expect_equivalent(t$process18(list("23"=t,"12"=t2)),t$gett())
+      p18 <- collections::dict(c(t,t2),c(23L,12L))
+      expect_equivalent(t$process18(p18),t$gett())
 
       # process 19
-      dd <- list()
+      dd <- collections::dict()
       t$process19(dd)
-      expect_equal(length(dd),1)
-      expect_equal(as.integer(names(dd)),23)
-      expect_equivalent(dd[[1]]$gett(),12L)
+      expect_equal(dd$size(),1)
+      expect_equal(dd$keys(),list(23L))
+      expect_equivalent(dd$values()[[1]]$gett(),12L)
 
       # process 20
-      dd <- list()
+      dd <- collections::dict()
       t$process20(dd)
-      expect_equal(as.integer(names(dd)),23)
-      expect_equivalent(dd[[1]],42.0)
+      expect_equal(dd$keys(),list(23L))
+      expect_equivalent(dd$get(23L),42.0)
 
       # process 21
-      d1 <- list()
-      t$process21(d1,list("42"=11))
-      expect_equivalent(d1[["1"]],11L)
+      d1 <- collections::dict()
+      t$process21(d1,collections::dict(11L,42L))
+      expect_true(d1$has(1L))
+      expect_equivalent(d1$get(1L),11L)
 
       # process 211
-      d1 <- list()
-      t$process211(d1,list("42"=list(11,6)))
-      expect_equivalent(d1[["1"]],11L)
+      d1 <- collections::dict()
+      list("42"=list(11,6))
+      t$process211(d1,collections::dict(list(list(11L,6L)),list("42")))
+      expect_equivalent(d1$get(1L),11L)
 
       # process 212
-      d2 <- list()
-      t$process212(d2,list("42"=list(list(11,6),list(2),list(8))))
-      expect_equivalent(d1[["1"]],11L)
+      d2 <- collections::dict()
+      v <- list(list(list(11,6),list(2),list(8)))
+      k <- list("42")
+      t$process212(d2,collections::dict(v,k))
+      expect_equivalent(d2$get(1L),11L)
 
       # process 214
-      d3 <- list()
-      t$process214(d3,list("42"=list(list(11,6),list(2,8))))
-      expect_equivalent(d1[["1"]],11L)
+      d3 <- collections::dict()
+      v <- list(list(list(11,6),list(2,8)))
+      k <- list("42")
+      t$process214(d3,collections::dict(v,k))
+      expect_equivalent(d3$get(1L),11L)
 
       d1 <- list(42L)
       d2 <- list()
