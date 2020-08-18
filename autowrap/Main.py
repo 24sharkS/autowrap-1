@@ -137,7 +137,7 @@ def collect_manual_code(addons):
             else:
                 break
         remainder = "".join(line_iter)
-        manual_code.setdefault(clz_name, Code.Code()).add(remainder)
+        manual_code.setdefault(clz_name, Code()).add(remainder)
     return cimports, manual_code
 
 

@@ -21,9 +21,15 @@ py_run_string(paste("def transform_dict(d):","    return dict(zip([k.decode('utf
 
 # Returns the name of wrapper R6 class
 class_to_wrap <- function(py_ob){
-       strsplit(class(py_ob)[1],"\\.")[[1]][2]
+       class <- tail(strsplit(class(py_ob)[1],"\\.")[[1]],n = 1)
+       # To correctly return the class name for Interfaces (BinaryDataArray,Chromatogram,Spectrum) by removing "_Interfaces_"
+       comp <- strsplit(class,"_Interfaces_")[[1]]
+       if (length(comp) == 1 && comp[1] == class){
+           return(class)
+       }
+       else { return(comp[-1]) }
 } 
-    
+
 # R implementation of _ABS_Impl1
 ABS_Impl1 <- R6Class(classname = "ABS_Impl1",cloneable = FALSE,
 
@@ -76,10 +82,9 @@ ABS_Impl1 <- R6Class(classname = "ABS_Impl1",cloneable = FALSE,
         r_ans = py_ans
         return(r_ans)
     }
-    
-        )
+)
 ) 
-    
+
 # R implementation of _ABS_Impl2
 ABS_Impl2 <- R6Class(classname = "ABS_Impl2",cloneable = FALSE,
 
@@ -132,10 +137,9 @@ ABS_Impl2 <- R6Class(classname = "ABS_Impl2",cloneable = FALSE,
         r_ans = py_ans
         return(r_ans)
     }
-    
-        )
+)
 ) 
-    
+
 # R implementation of _Int
 Int <- R6Class(classname = "Int",cloneable = FALSE,
 
@@ -203,16 +207,16 @@ Int <- R6Class(classname = "Int",cloneable = FALSE,
            }
     
     }
-    )
+)
 ) 
-    
+
 # R implementation of _LibCppTest
 
-    # This is some class doc
-    # Pretty cool stuff!
-    # -----
-    # With a trick, we can even get multiple paragraphs, allowing us to
-    # write much longer documentation.
+# This is some class doc
+# Pretty cool stuff!
+# -----
+# With a trick, we can even get multiple paragraphs, allowing us to
+# write much longer documentation.
 LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
 
     private = list(py_obj = NA),
@@ -516,7 +520,9 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: libcpp_set[LibCppTest] process11(libcpp_set[LibCppTest] &)
     process11 = function(in_0){
     
-        if(!(is_list(in_0) && all(sapply(in_0,function(el) is.R6(el) && class(el)[1] == "LibCppTest")) && length(in_0) == py_to_r(py_builtin$len(py_builtin$set(in_0))))){ stop("arg in_0 wrong type") }
+        if(!(
+              is_list(in_0) && all(sapply(in_0,function(el) is.R6(el) && class(el)[1] == "LibCppTest")) && length(in_0) == py_to_r(py_builtin$len(py_builtin$set(in_0)))
+              )){ stop("arg in_0 wrong type") }
         py$v0 <- lapply(in_0,function(item0) item0$.__enclos_env__$private$py_obj)
         py_run_string("v0 = set(v0)")
         py_ans = private$py_obj$process11(py$v0)
@@ -585,7 +591,11 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: float process16(libcpp_map[int,float] in_)
     process16 = function(in_){
     
-        if(!(is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict") && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_$values(),function(v) is_scalar_double(v))))){ stop("arg in_ wrong type") }
+        if(!(
+          is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict")
+          && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k)))
+          && all(sapply(in_$values(),function(v) is_scalar_double(v)))
+          )){ stop("arg in_ wrong type") }
         v0 <- py_dict(modify_depth(in_$keys(),1,as.integer),in_$values())
         py_ans = private$py_obj$process16(v0)
         r_ans = py_ans
@@ -595,7 +605,11 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: float process17(libcpp_map[EEE,float] in_)
     process17 = function(in_){
     
-        if(!(is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict") && all(sapply(in_$keys(),function(k) k %in% c(0, 1))) && all(sapply(in_$values(),function(v) is_scalar_double(v))))){ stop("arg in_ wrong type") }
+        if(!(
+          is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict")
+          && all(sapply(in_$keys(),function(k) k %in% c(0, 1)))
+          && all(sapply(in_$values(),function(v) is_scalar_double(v)))
+          )){ stop("arg in_ wrong type") }
         v0 <- py_dict(modify_depth(in_$keys(),1,as.integer),in_$values())
         py_ans = private$py_obj$process17(v0)
         r_ans = py_ans
@@ -605,7 +619,11 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: int process18(libcpp_map[int,LibCppTest] in_)
     process18 = function(in_){
     
-        if(!(is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict") && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_$values(),function(v) is.R6(v) && class(v)[1] == "LibCppTest")))){ stop("arg in_ wrong type") }
+        if(!(
+          is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict")
+          && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k)))
+          && all(sapply(in_$values(),function(v) is.R6(v) && class(v)[1] == "LibCppTest"))
+          )){ stop("arg in_ wrong type") }
         v0 <- py_dict(modify_depth(in_$keys(),1,as.integer),in_$values())
         py_ans = private$py_obj$process18(v0)
         r_ans = py_ans
@@ -615,7 +633,11 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process19(libcpp_map[int,LibCppTest] & in_)
     process19 = function(in_){
     
-        if(!(is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict") && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_$values(),function(v) is.R6(v) && class(v)[1] == "LibCppTest")))){ stop("arg in_ wrong type") }
+        if(!(
+          is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict")
+          && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k)))
+          && all(sapply(in_$values(),function(v) is.R6(v) && class(v)[1] == "LibCppTest"))
+          )){ stop("arg in_ wrong type") }
         v0 <- py_dict(modify_depth(in_$keys(),1,as.integer),in_$values())
         private$py_obj$process19(v0)
         byref_0 <- collections::dict(lapply(py_to_r(py_builtin$list(v0$values())),function(i) LibCppTest$new(i)), py_to_r(py_builtin$list(v0$keys())))
@@ -631,7 +653,11 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process20(libcpp_map[int,float] & in_)
     process20 = function(in_){
     
-        if(!(is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict") && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_$values(),function(v) is_scalar_double(v))))){ stop("arg in_ wrong type") }
+        if(!(
+          is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict")
+          && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k)))
+          && all(sapply(in_$values(),function(v) is_scalar_double(v)))
+          )){ stop("arg in_ wrong type") }
         v0 <- py_dict(modify_depth(in_$keys(),1,as.integer),in_$values())
         private$py_obj$process20(v0)
         byref_0 <- collections::dict(py_to_r(py_builtin$list(v0$values())),py_to_r(py_builtin$list(v0$keys())))
@@ -647,8 +673,16 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process21(libcpp_map[int,float] & in_, libcpp_map[int,int] & arg2)
     process21 = function(in_, arg2){
     
-        if(!(is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict") && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_$values(),function(v) is_scalar_double(v))))){ stop("arg in_ wrong type") }
-        if(!(is.environment(arg2) && identical(parent.env(arg2), asNamespace("collections")) && identical(strsplit(capture.output(arg2$print())," ")[[1]][1], "dict") && all(sapply(arg2$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(arg2$values(),function(v)  (is_scalar_integer(v) || is_scalar_double(v)) && v == as.integer(v))))){ stop("arg arg2 wrong type") }
+        if(!(
+          is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict")
+          && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k)))
+          && all(sapply(in_$values(),function(v) is_scalar_double(v)))
+          )){ stop("arg in_ wrong type") }
+        if(!(
+          is.environment(arg2) && identical(parent.env(arg2), asNamespace("collections")) && identical(strsplit(capture.output(arg2$print())," ")[[1]][1], "dict")
+          && all(sapply(arg2$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k)))
+          && all(sapply(arg2$values(),function(v)  (is_scalar_integer(v) || is_scalar_double(v)) && v == as.integer(v)))
+          )){ stop("arg arg2 wrong type") }
         v0 <- py_dict(modify_depth(in_$keys(),1,as.integer),in_$values())
         v1 <- py_dict(modify_depth(arg2$keys(),1,as.integer),as.integer(arg2$values()))
         private$py_obj$process21(v0, v1)
@@ -667,8 +701,16 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process211(libcpp_map[int,float] & in_, libcpp_map[libcpp_string,libcpp_vector[int]] & arg2)
     process211 = function(in_, arg2){
     
-        if(!(is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict") && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_$values(),function(v) is_scalar_double(v))))){ stop("arg in_ wrong type") }
-        if(!(is.environment(arg2) && identical(parent.env(arg2), asNamespace("collections")) && identical(strsplit(capture.output(arg2$print())," ")[[1]][1], "dict") && all(sapply(arg2$keys(),function(k) is_scalar_character(k))) && all(sapply(arg2$values(),function(v) is_list(v) && all(sapply(v,function(elemt_rec)  (is_scalar_integer(elemt_rec) || is_scalar_double(elemt_rec)) && elemt_rec == as.integer(elemt_rec))))))){ stop("arg arg2 wrong type") }
+        if(!(
+          is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict")
+          && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k)))
+          && all(sapply(in_$values(),function(v) is_scalar_double(v)))
+          )){ stop("arg in_ wrong type") }
+        if(!(
+          is.environment(arg2) && identical(parent.env(arg2), asNamespace("collections")) && identical(strsplit(capture.output(arg2$print())," ")[[1]][1], "dict")
+          && all(sapply(arg2$keys(),function(k) is_scalar_character(k)))
+          && all(sapply(arg2$values(),function(v) is_list(v) && all(sapply(v,function(elemt_rec)  (is_scalar_integer(elemt_rec) || is_scalar_double(elemt_rec)) && elemt_rec == as.integer(elemt_rec)))))
+          )){ stop("arg arg2 wrong type") }
         v0 <- py_dict(modify_depth(in_$keys(),1,as.integer),in_$values())
         v1 <- py_dict(modify_depth(arg2$keys(),1,function(a) py_builtin$bytes(a,'utf-8')),modify_depth(arg2$values(),2,as.integer))
         private$py_obj$process211(v0, v1)
@@ -687,8 +729,16 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process212(libcpp_map[int,float] & in_, libcpp_map[libcpp_string,libcpp_vector[libcpp_vector[int]]] & arg2)
     process212 = function(in_, arg2){
     
-        if(!(is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict") && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_$values(),function(v) is_scalar_double(v))))){ stop("arg in_ wrong type") }
-        if(!(is.environment(arg2) && identical(parent.env(arg2), asNamespace("collections")) && identical(strsplit(capture.output(arg2$print())," ")[[1]][1], "dict") && all(sapply(arg2$keys(),function(k) is_scalar_character(k))) && all(sapply(arg2$values(),function(v) is_list(v) && all(sapply(v,function(elemt_rec) is_list(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec)  (is_scalar_integer(elemt_rec_rec) || is_scalar_double(elemt_rec_rec)) && elemt_rec_rec == as.integer(elemt_rec_rec))))))))){ stop("arg arg2 wrong type") }
+        if(!(
+          is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict")
+          && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k)))
+          && all(sapply(in_$values(),function(v) is_scalar_double(v)))
+          )){ stop("arg in_ wrong type") }
+        if(!(
+          is.environment(arg2) && identical(parent.env(arg2), asNamespace("collections")) && identical(strsplit(capture.output(arg2$print())," ")[[1]][1], "dict")
+          && all(sapply(arg2$keys(),function(k) is_scalar_character(k)))
+          && all(sapply(arg2$values(),function(v) is_list(v) && all(sapply(v,function(elemt_rec) is_list(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec)  (is_scalar_integer(elemt_rec_rec) || is_scalar_double(elemt_rec_rec)) && elemt_rec_rec == as.integer(elemt_rec_rec)))))))
+          )){ stop("arg arg2 wrong type") }
         v0 <- py_dict(modify_depth(in_$keys(),1,as.integer),in_$values())
         v1 <- py_dict(modify_depth(arg2$keys(),1,function(a) py_builtin$bytes(a,'utf-8')),modify_depth(arg2$values(),3,as.integer))
         private$py_obj$process212(v0, v1)
@@ -707,8 +757,16 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
     # C++ signature: void process214(libcpp_map[int,float] & in_, libcpp_map[libcpp_string,libcpp_vector[libcpp_pair[int,int]]] & arg2)
     process214 = function(in_, arg2){
     
-        if(!(is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict") && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k))) && all(sapply(in_$values(),function(v) is_scalar_double(v))))){ stop("arg in_ wrong type") }
-        if(!(is.environment(arg2) && identical(parent.env(arg2), asNamespace("collections")) && identical(strsplit(capture.output(arg2$print())," ")[[1]][1], "dict") && all(sapply(arg2$keys(),function(k) is_scalar_character(k))) && all(sapply(arg2$values(),function(v) is_list(v) && all(sapply(v,function(elemt_rec) is_list(elemt_rec) && length(elemt_rec) == 2 &&  (is_scalar_integer(elemt_rec[[1]]) || is_scalar_double(elemt_rec[[1]])) && elemt_rec[[1]] == as.integer(elemt_rec[[1]]) &&  (is_scalar_integer(elemt_rec[[2]]) || is_scalar_double(elemt_rec[[2]])) && elemt_rec[[2]] == as.integer(elemt_rec[[2]]))))))){ stop("arg arg2 wrong type") }
+        if(!(
+          is.environment(in_) && identical(parent.env(in_), asNamespace("collections")) && identical(strsplit(capture.output(in_$print())," ")[[1]][1], "dict")
+          && all(sapply(in_$keys(),function(k)  (is_scalar_integer(k) || is_scalar_double(k)) && k == as.integer(k)))
+          && all(sapply(in_$values(),function(v) is_scalar_double(v)))
+          )){ stop("arg in_ wrong type") }
+        if(!(
+          is.environment(arg2) && identical(parent.env(arg2), asNamespace("collections")) && identical(strsplit(capture.output(arg2$print())," ")[[1]][1], "dict")
+          && all(sapply(arg2$keys(),function(k) is_scalar_character(k)))
+          && all(sapply(arg2$values(),function(v) is_list(v) && all(sapply(v,function(elemt_rec) is_list(elemt_rec) && length(elemt_rec) == 2 &&  (is_scalar_integer(elemt_rec[[1]]) || is_scalar_double(elemt_rec[[1]])) && elemt_rec[[1]] == as.integer(elemt_rec[[1]]) &&  (is_scalar_integer(elemt_rec[[2]]) || is_scalar_double(elemt_rec[[2]])) && elemt_rec[[2]] == as.integer(elemt_rec[[2]])))))
+          )){ stop("arg arg2 wrong type") }
         v0 <- py_dict(modify_depth(in_$keys(),1,as.integer),in_$values())
         v1 <- py_dict(modify_depth(arg2$keys(),1,function(a) py_builtin$bytes(a,'utf-8')),map_depth(arg2$values(),2,function(a) list(as.integer(a[[1]]),as.integer(a[[2]]))))
         private$py_obj$process214(v0, v1)
@@ -989,7 +1047,7 @@ LibCppTest <- R6Class(classname = "LibCppTest",cloneable = FALSE,
         }
     
     }
-    )
+)
 ) 
 
 EEE = R6Class(classname = "EEE", cloneable = FALSE,

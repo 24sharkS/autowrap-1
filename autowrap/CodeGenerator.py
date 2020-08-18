@@ -114,8 +114,7 @@ class CodeGenerator(object):
         # adding new field r_target_path
         self.r_target_path = r_target_path
         self.target_path = os.path.abspath(r_target_path)
-        self.target_pxd_path = "imports.R"
-        # self.target_pxd_path = self.target_path.split(".R")[0] + ".pxd"
+        self.target_pxd_path = re.split("pyopenms_..R",self.target_path)[0] + "imports.R"
         self.target_dir = os.path.dirname(self.target_path)
 
         # If true, we will write separate pxd and pyx files (need to ensure the
@@ -244,11 +243,10 @@ class CodeGenerator(object):
             names.add(n)
 
         # manual code which does not extend wrapped classes:
-        # commenting for now as no manual code.
-        # for name, c in self.manual_code.items():
-        #     if name not in names:
-        #         R_code += c.render()
-        #     R_code += " \n"
+        for name, c in self.manual_code.items():
+            if name not in names:
+                R_code += c.render()
+            R_code += " \n"
 
         # Create code for the pxd file
         pxd_code = "\n".join(ci.render() for ci in self.top_level_code)
@@ -322,11 +320,6 @@ class CodeGenerator(object):
         code = Code.Code()
         enum_pxd_code = Code.Code()
 
-        enum_pxd_code.add("""
-                   |
-                   |$name = R6Class(classname = \"$name\", cloneable = FALSE,
-                   |
-                 """, name=name)
         code.add("""
                    |
                    |$name = R6Class(classname = \"$name\", cloneable = FALSE,
@@ -350,13 +343,13 @@ class CodeGenerator(object):
                 |)""", name = decl.name )
 
         self.class_codes[decl.name] = code
-        self.class_pxd_codes[decl.name] = enum_pxd_code
+        # self.class_pxd_codes[decl.name] = enum_pxd_code
 
         for class_name in decl.cpp_decl.annotations.get("wrap-attach", []):
             code = Code.Code()
             display_name = decl.cpp_decl.annotations.get("wrap-as", [decl.name])[0]
-            code.add("%s = %s" % (display_name, "__" + decl.name))
-            self.class_codes[class_name].add(code)
+            # code.add("%s = %s" % (display_name, "__" + decl.name))
+            # self.class_codes[class_name].add(code)
 
     def create_wrapper_for_class(self, r_class):
         """Create R code for a single class
@@ -371,6 +364,10 @@ class CodeGenerator(object):
 
         # changing pyname to rname
         rname = cname
+        temp = rname.split("_Interfaces_")
+        if len(temp) > 1:
+            rname = temp[-1]
+
         # if r_class.cpp_decl.annotations.get("wrap-attach"):
         #     pyname = "__" + r_class.name
         # else:
@@ -399,44 +396,25 @@ class CodeGenerator(object):
         #
         extra_doc = r_class.cpp_decl.annotations.get("wrap-doc", "")
         for extra_doc_line in extra_doc:
-            docstring += "\n    # " + extra_doc_line
+            docstring += "\n# " + extra_doc_line
 
         if r_class.methods:
-            # py_ob : underlying python object.
-            py_ob = "private = list(py_obj = NA),"
-            # shared_ptr_inst = "cdef shared_ptr[%s] inst" % cy_type
-
-            # if len(r_class.wrap_manual_memory) != 0 and r_class.wrap_manual_memory[0] != "__old-model":
-            #     shared_ptr_inst = r_class.wrap_manual_memory[0]
-
-            # if self.write_pxd:
-            #     class_pxd_code.add("""
-            #                     |
-            #                     |cdef class $pyname:
-            #                     |    \"\"\"
-            #                     |    $docstring
-            #                     |    \"\"\"
-            #                     |    $shared_ptr_inst
-            #                     |
-            #                     """, locals())
-            #     shared_ptr_inst = "# see .pxd file for cdef of inst ptr" # do not implement in pyx file, only in pxd file
-
+            pass
             if len(r_class.wrap_manual_memory) != 0:
                 pass
-                # class_code.add("""
-                #                 |
-                #                 |
-                #                 |    $docstring
-                #                 |
-                #                 """, locals())
-            else:
-                class_code.add("""
-                                |    $docstring
-                                |$rname <- R6Class(classname = \"$rname\",cloneable = FALSE,
-                                |
-                                |    $py_ob
-                                |
-                                """, locals())
+
+        if r_class.methods or len(r_class.attributes) > 0:
+            py_ob = "private = list(py_obj = NA),"
+        else:
+            py_ob = "private = list(py_obj = NA)"
+
+        class_code.add("""
+                        |$docstring
+                        |$rname <- R6Class(classname = \"$rname\",cloneable = FALSE,
+                        |
+                        |    $py_ob
+                        |
+                        """, locals())
 
         if len(r_class.wrap_hash) != 0:
             pass
@@ -452,7 +430,7 @@ class CodeGenerator(object):
             #                 |
             #                 """ % r_class.wrap_hash[0], locals())
 
-        self.class_pxd_codes[cname] = class_pxd_code
+        # self.class_pxd_codes[cname] = class_pxd_code
         self.class_codes[cname] = class_code
 
         cons_created = False
@@ -478,10 +456,15 @@ class CodeGenerator(object):
                 attr_cur+=1
                 class_code.add(self._create_wrapper_for_attribute(attribute,attr_cur,total_attr_cnt))
 
-        if len(r_class.attributes) > 0:
+        if len(r_class.attributes) > 0 and r_class.methods:
             class_code.add("""
                 |
                 |    ),
+                """, locals())
+        elif len(r_class.attributes) > 0 and not r_class.methods:
+            class_code.add("""
+                |
+                |    )
                 """, locals())
 
         iterators, non_iter_methods = self.filterout_iterators(r_class.methods)
@@ -489,11 +472,22 @@ class CodeGenerator(object):
         # total number of methods in that class
         total_method_count = 0
 
-        for x,y in r_class.methods.items():
-            total_method_count += len(y)
+        for name,methods in non_iter_methods.items():
+            if not name == r_class.name:
+                if name.startswith("operator"):
+                    __, __, op = name.partition("operator")
+                    if op == "()" or "[]":
+                        pass
+                        # total_method_count += len(methods)
+                else:
+                    total_method_count += len(methods)
+            else:
+                total_method_count += len(methods)
 
-        # TODO counter for wrapped methods (currently only wrapping non-overloaded & non-iterator methods).
+
+        # TODO counter for wrapped methods (currently only wrapping methods excluding __iter__).
         meth_cnt  = 0
+
         if len(non_iter_methods.items()) > 0:
             # Add public field before creating any constructor/method.
             ps = Code.Code()
@@ -506,51 +500,73 @@ class CodeGenerator(object):
         # store the code for operator methods [ (),[],+,*,+= ]
         operator_code = []
         for (name, methods) in non_iter_methods.items():
-            meth_cnt+=len(methods)
             if name == r_class.name:
+                meth_cnt += len(methods)
                 codes = self.create_wrapper_for_constructor(r_class, methods,meth_cnt,total_method_count)
                 cons_created = True
             else:
+                if name.startswith("operator"):
+                    __, __, op = name.partition("operator")
+                    if op == "()" or "[]":
+                        pass
+                        # meth_cnt += len(methods)
+                else:
+                    meth_cnt += len(methods)
                 codes = self.create_wrapper_for_method(r_class, name, methods,meth_cnt,total_method_count,operator_code)
 
             for ci in codes:
                 class_code.add(ci)
+
+        if len(non_iter_methods.items()) > 0:
+            class_code.add("""
+               |)
+                """, locals())
 
         has_ops = dict()
         for ops in ["==", "!=", "<", "<=", ">", ">="]:
             has_op = ("operator%s" % ops) in non_iter_methods
             has_ops[ops] = has_op
 
-        # not implementing these methods now.
-        if any(v for v in has_ops.values()):
-            pass
-            # code = self.create_special_cmp_method(r_class, has_ops)
-            # class_code.add(code)
+        # Iterators not implemented.
+        # codes = self._create_iter_methods(iterators, r_class.instance_map, r_class.local_map)
+        # for ci in codes:
+        #     class_code.add(ci)
 
-        codes = self._create_iter_methods(iterators, r_class.instance_map, r_class.local_map)
-        for ci in codes:
-            class_code.add(ci)
 
-        extra_methods_code = self.manual_code.get(cname)
-        if extra_methods_code:
-            class_code.add(extra_methods_code)
-
-        # Check here if problem comes later
+        # Dealt with static functions
+        # Ignoring the case of nested classes
         for class_name in r_class.cpp_decl.annotations.get("wrap-attach", []):
-            code = Code.Code()
-            display_name = r_class.cpp_decl.annotations.get("wrap-as", [r_class.name])[0]
-            code.add("%s = %s" % (display_name, "__" + r_class.name))
-            tmp = self.class_codes_extra.get(class_name, [])
-            tmp.append(code)
-            self.class_codes_extra[class_name] = tmp
+            pass
+            # code = Code.Code()
+            # display_name = r_class.cpp_decl.annotations.get("wrap-as", [r_class.name])[0]
+            # code.add("%s = %s" % (display_name, "__" + r_class.name))
+            # tmp = self.class_codes_extra.get(class_name, [])
+            # tmp.append(code)
+            # self.class_codes_extra[class_name] = tmp
 
         class_code.add("""
                         |)
                         """)
 
+        if not cons_created:
+            class_code.add("""
+                            |$rname$$set("public","initialize",function(){
+                            |   private$$py_obj <- Pymod$$rname()
+                            |},overwrite = TRUE)
+                            """, locals())
+
         if len(operator_code) > 0:
             for c in operator_code:
                 self.class_codes[r_class.name].add(c)
+
+        if any(v for v in has_ops.values()):
+            code = self.create_special_cmp_method(r_class, has_ops)
+            class_code.add(code)
+
+        # Adding all the extra methods at last
+        extra_methods_code = self.manual_code.get(cname)
+        if extra_methods_code:
+            class_code.add(extra_methods_code)
 
     def _create_iter_methods(self, iterators, instance_mapping, local_mapping):
         """
@@ -614,9 +630,10 @@ class CodeGenerator(object):
 
         first_iteration = True
 
-
         for (dispatched_m_name, method) in zip(dispatched_m_names, methods):
             args = augment_arg_names(method)
+            # Added flags here
+            print("Argument List: ",args)
             if not args:
                 check_expr = "length(arg_list)==0"
 
@@ -628,6 +645,8 @@ class CodeGenerator(object):
 
             else:
                 tns = [(t, "arg_list[[%d]]" % (i+1)) for i, (t, n) in enumerate(args)]
+                # added flag here
+                print("Type and Arguments: ",tns)
                 checks = ["length(arg_list)==%d" % len(tns)]
                 checks += [self.cr.get(t).type_check_expression(t, n) for (t, n) in tns]
                 check_expr = " && ".join("(%s)" % c for c in checks)
@@ -646,6 +665,10 @@ class CodeGenerator(object):
                             |    }     
                             """, locals())
         elif for_cons == True and r_classname is not None:
+            if r_classname is not None:
+                temp = r_classname.split("_Interfaces_")
+                if len(temp) > 1:
+                    r_classname = temp[-1]
             method_code.add("""    else{
                             |           # to create a new R object and set its underlying python object as the one supplied in the constructor.
                             |           # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct fashion.
@@ -677,14 +700,15 @@ class CodeGenerator(object):
                 # these
                 return []
             elif op == "()":
+                codes = self.create_cast_methods(methods,meth_cnt,total_method_count,class_name = cdcl.name)
+                operator_code.extend(codes)
                 return []
-                # codes = self.create_cast_methods(methods)
-                # return codes
             elif op == "[]":
                 assert len(methods) == 1, "overloaded operator[] not suppored"
-                code_get = self.create_special_getitem_method(methods[0])
-                code_set = self.create_special_setitem_method(methods[0])
-                return [code_get, code_set]
+                code_get = self.create_special_getitem_method(methods[0],cdcl)
+                code_set = self.create_special_setitem_method(methods[0],cdcl)
+                operator_code.extend([code_get, code_set])
+                return []
             elif op == "+":
                 assert len(methods) == 1, "overloaded operator+ not suppored"
                 code = self.create_special_add_method(cdcl, methods[0])
@@ -696,9 +720,11 @@ class CodeGenerator(object):
                 operator_code.append(code)
                 return []
             elif op == "+=":
+                #
+                # can't support += operator in R
+                #
                 assert len(methods) == 1, "overloaded operator+= not suppored"
                 # code = self.create_special_iadd_method(cdcl, methods[0])
-                # leaving for now.
                 return []
 
         if len(methods) == 1:
@@ -727,7 +753,6 @@ class CodeGenerator(object):
                 codes.append(Code.Code().add("""
                    |
                    |}
-                   |)
                     """))
             else:
                 codes.append(Code.Code().add("""
@@ -736,7 +761,7 @@ class CodeGenerator(object):
                     """))
             return codes
 
-    def _create_fun_decl_and_input_conversion(self, code, py_name, method, is_free_fun=False, is_single_cons = None,class_decl = None):
+    def _create_fun_decl_and_input_conversion(self, code, py_name, method, is_free_fun=False, is_single_cons = None,class_decl = None,for_method = None,for_modifiers = False):
         """ Creates the function declarations and the input conversion to python
         and the output conversion back to R.
 
@@ -792,26 +817,30 @@ class CodeGenerator(object):
 
         py_signature = ", ".join(py_signature_parts)
 
+        if for_method is True:
+            alter_name = "initialise" if py_name == "initialize" else py_name
+        else:
+            alter_name = py_name
         if is_single_cons is True and len(str_eval_missing) == 0:
             code.add("""
                        |$docstring
-                       |$py_name = function(...){
+                       |$alter_name = function(...){
                        |    par <- list(...)
                        """, locals())
         else:
-            code.add("""
-                       |$docstring
-                       |$py_name = function($py_signature){
-                       |
-                       """, locals())
+            if not for_modifiers:
+                code.add("""
+                           |$docstring
+                           |$alter_name = function($py_signature){
+                           |
+                           """, locals())
         # Step 2a: create code which convert R input args to python args of
         # wrapped method
         if is_single_cons in (None,False):
             for n, check in checks:
                 code.add("""
-                           |    if(!(%s)){ stop(\"arg %s wrong type\") }
-                           """ % (check,n))
-                # code.add("    if(!(%s)){ stop(\"arg %s wrong type\") }" % (check, n))
+                           |    if(!($check)){ stop(\"arg $n wrong type\") }
+                           """,locals())
         else:
             if is_single_cons is True:
                 class_name = class_decl.name
@@ -824,7 +853,7 @@ class CodeGenerator(object):
                                |  } else {
                                """, locals())
                     for n, check in checks:
-                        code.add("    if(!(%s)){ stop(\"arg %s wrong type\") }" % (check, n))
+                        code.add("    if(!($check)){ stop(\"arg $n wrong type\") }", locals())
                 else:
                     code.add("""
                                |if (!length(par) %in% c(0,1)) { stop("arg wrong type")}
@@ -834,7 +863,7 @@ class CodeGenerator(object):
                                |} else if (length(par)==0) {
                                """, locals())
                     for n, check in checks:
-                        code.add("    if(!(%s)){ stop(\"arg %s wrong type\") }" % (check, n))
+                        code.add("    if(!($check)){ stop(\"arg $n wrong type\") }", locals())
 
         # Step 2b: add any more sophisticated conversion code that was created
         # above:
@@ -882,9 +911,9 @@ class CodeGenerator(object):
             # TODO: add mit indent level
             indented = Code.Code()
             indented.add("""
-                       |    if(!(%s)){ stop(\"arg %s wrong type\") }
+                       |    if(!($type_check)){ stop(\"arg $name wrong type\") }
                        |
-                       """ % (type_check, name))
+                       """, locals())
             indented.add(conv_code)
             code.add(indented)
 
@@ -963,7 +992,7 @@ class CodeGenerator(object):
         # print("meth_cnt = "+str(meth_cnt))
         meth_code = Code.Code()
 
-        call_args, cleanups, in_types, ref_arg = self._create_fun_decl_and_input_conversion(meth_code,py_name,method)
+        call_args, cleanups, in_types, ref_arg = self._create_fun_decl_and_input_conversion(meth_code,py_name,method,for_method = True)
 
         # call wrapped method and convert result value back to R
         cpp_name = method.cpp_decl.name
@@ -1033,8 +1062,6 @@ class CodeGenerator(object):
                 if(meth_cnt == total_method_count):
                     indented.add("""
                       |}
-                      |
-                      |    )
                       """)
                 else:
                     indented.add("""
@@ -1049,8 +1076,6 @@ class CodeGenerator(object):
                 if(meth_cnt == total_method_count):
                     indented.add("""
                       |}
-                      |
-                      |    )
                       """)
                 else:
                     indented.add("""
@@ -1077,8 +1102,6 @@ class CodeGenerator(object):
                 if(meth_cnt == total_method_count):
                     indented.add("""
                       |}
-                      |
-                      |    )
                       """)
                 else:
                     indented.add("""
@@ -1090,8 +1113,6 @@ class CodeGenerator(object):
                 if(meth_cnt == total_method_count):
                     indented.add("""
                       |}
-                      |
-                      |    )
                       """)
                 else:
                     indented.add("""
@@ -1224,7 +1245,6 @@ class CodeGenerator(object):
             codes.append(Code.Code().add("""
                |
                |}
-               |)
                 """))
         else:
             codes.append(Code.Code().add("""
@@ -1252,12 +1272,14 @@ class CodeGenerator(object):
                 """)
             return cons_code
 
-        # print(call_args)
         # create instance of wrapped class
         call_args_str = ", ".join(call_args)
         name = class_decl.name
-        print(name)
-        cy_type = self.cr.cython_type(name)
+        temp = name.split("_Interfaces_")
+        if len(temp) > 1:
+            name = "Interfaces$"+ temp[-1]
+        print("Name is : ",name," ",class_decl.name)
+        # cy_type = self.cr.cython_type(name)
         if is_single_cons in (None,False):
             cons_code.add("""
                |
@@ -1265,12 +1287,13 @@ class CodeGenerator(object):
                |    invisible()
                |
                 """, locals())
-        else:
-            if is_single_cons is True:
-                cons_code.add("""
-                   |
-                   |    private$$py_obj <- Pymod$$$name($call_args_str)
-                    """, locals())
+        elif is_single_cons is True:
+            cons_code.add("""
+               |
+               |    private$$py_obj <- Pymod$$$name($call_args_str)
+               |    invisible()
+               |}
+                """, locals())
 
         for cleanup in reversed(cleanups):
             if not cleanup:
@@ -1279,10 +1302,10 @@ class CodeGenerator(object):
                 cleanup = "    %s" % cleanup
             cons_code.add(cleanup)
 
-        if is_single_cons is True and call_args_str == "":
-            cons_code.add("""
-               |}
-                """, locals())
+        # if is_single_cons is True and call_args_str == "":
+        #     cons_code.add("""
+        #        |}
+        #         """, locals())
 
         return cons_code
 
@@ -1373,38 +1396,43 @@ class CodeGenerator(object):
 
         return code
 
-    def create_special_getitem_method(self, mdcl):
+    def create_special_getitem_method(self, mdcl,cdcl):
         L.info("   create get wrapper for operator[]")
         meth_code = Code.Code()
-
-        (call_arg,), cleanups, (in_type,), ref_arg =\
-            self._create_fun_decl_and_input_conversion(meth_code, "__getitem__", mdcl)
+        class_name = cdcl.name
 
         meth_code.add("""
-                     |    cdef long _idx = $call_arg
+                     |    #' @export
+                     |    `[.$class_name` <- function(x,ix){
+                     |          stopifnot(is.R6(x))         
+                     """, locals())
+
+        (call_arg,), cleanups, (in_type,), ref_arg =\
+            self._create_fun_decl_and_input_conversion(meth_code, "__getitem__", mdcl,for_modifiers=True)
+
+        meth_code.add("""
+                     |    idx = $call_arg
                      """, locals())
 
         if in_type.is_unsigned:
             meth_code.add("""
-                        |    if _idx < 0:
-                        |        raise IndexError("invalid index %d" % _idx)
+                        |    if (idx < 0) { stop(paste("invalid index ",idx)) }
                         """, locals())
 
         size_guard = mdcl.cpp_decl.annotations.get("wrap-upper-limit")
         if size_guard:
             meth_code.add("""
-                     |    if _idx >= self.inst.get().$size_guard:
-                     |        raise IndexError("invalid index %d" % _idx)
+                     |    if (idx >=  x$$.__enclos_env__$$private$$py_obj$$inst$$get()$$$size_guard) { stop(paste("invalid index",idx)) }
                      """, locals())
 
         # call wrapped method and convert result value back to python
 
-        cy_call_str = "deref(self.inst.get())[%s]" % call_arg
+        cy_call_str = "x$.__enclos_env__$private$py_obj[%s]" % call_arg
 
         res_t = mdcl.result_type
         out_converter = self.cr.get(res_t)
-        if out_converter.get_base_types()[0] in ("libcpp_map","Map"):
-            cy_call_str = "py_call(private$py_obj$%s,%s)" % (py_name, call_args_str)
+        # if out_converter.get_base_types()[0] in ("libcpp_map","Map"):
+        #     cy_call_str = "py_call(private$py_obj$%s,%s)" % (py_name, call_args_str)
         full_call_stmt = out_converter.call_method(res_t, cy_call_str)
 
         if isinstance(full_call_stmt, basestring):
@@ -1421,18 +1449,22 @@ class CodeGenerator(object):
                 cleanup = Code.Code().add(cleanup)
             meth_code.add(cleanup)
 
-        out_var = "py_result"
-        to_py_code = out_converter.output_conversion(res_t, "_r", out_var)
+        out_var = "r_ans"
+        to_py_code = out_converter.output_conversion(res_t, "py_ans", out_var)
         if to_py_code is not None:  # for non void return value
 
             if isinstance(to_py_code, basestring):
                 to_py_code = "    %s" % to_py_code
             meth_code.add(to_py_code)
-            meth_code.add("    return $out_var", locals())
+            meth_code.add("    return($out_var)", locals())
+
+        meth_code.add("""
+            |}
+            """, locals())
 
         return meth_code
 
-    def create_special_setitem_method(self, mdcl):
+    def create_special_setitem_method(self, mdcl,cdcl):
         # Note: setting will only work with a ref signature
         #   Object operator[](size_t k)  -> only get is implemented
         #   Object& operator[](size_t k) -> get and set is implemented
@@ -1446,39 +1478,47 @@ class CodeGenerator(object):
         L.info("   create set wrapper for operator[]")
         meth_code = Code.Code()
 
-        call_arg = "key"
+        call_arg = "as.integer(key)"
         value_arg = "value"
+        class_name = cdcl.name
 
         meth_code.add("""
-                     |def __setitem__(self, key, $res_t_base value):
-                     |    \"\"\"Test\"\"\"
-                     |    assert isinstance(key, (int, long)), 'arg index wrong type'
-                     |
-                     |    cdef long _idx = $call_arg
-                     |    if _idx < 0:
-                     |        raise IndexError("invalid index %d" % _idx)
+                     |#' @export
+                     |`[<-.$class_name` <- function(x,key,value){
+                     |    stopifnot(is.R6(x))
+                     |    if(!is.TRUE(all.equal(key,as.integer()))) { stop("arg index wrong type") }
+                     |    idx = $call_arg
+                     |    if (idx < 0) { stop(paste("invalid index",idx)) }
                      """, locals())
+        # meth_code.add("""
+        #              |def __setitem__(self, key, $res_t_base value):
+        #              |    \"\"\"Test\"\"\"
+        #              |    assert isinstance(key, (int, long)), 'arg index wrong type'
+        #              |
+        #              |    cdef long _idx = $call_arg
+        #              |    if _idx < 0:
+        #              |        raise IndexError("invalid index %d" % _idx)
+        #              """, locals())
 
         size_guard = mdcl.cpp_decl.annotations.get("wrap-upper-limit")
         if size_guard:
             meth_code.add("""
-                     |    if _idx >= self.inst.get().$size_guard:
-                     |        raise IndexError("invalid index %d" % _idx)
+                     |    if (idx >= x$$.__enclos_env__$$private$$py_obj$$inst$$get()$$$size_guard ) { stop(paste("invalid index",idx)) }
                      """, locals())
 
         # Store the input argument as
         #  CppObject[ idx ] = value
         #
-        cy_call_str = "deref(self.inst.get())[%s]" % call_arg
+        cy_call_str = "x$.__enclos_env__$private$py_obj[%s]" % call_arg
         out_converter = self.cr.get(res_t)
         code, call_as, cleanup = out_converter.input_conversion(res_t, value_arg, 0)
         meth_code.add("""
                  |    $cy_call_str = $call_as
+                 |}
                  """, locals())
-
         return meth_code
 
-    def create_cast_methods(self, mdecls):
+    def create_cast_methods(self, mdecls,meth_cnt,total_method_count,class_name):
         py_names = []
         for mdcl in mdecls:
             name = mdcl.cpp_decl.annotations.get("wrap-cast")
@@ -1494,30 +1534,46 @@ class CodeGenerator(object):
             cy_t = self.cr.cython_type(res_t)
             out_converter = self.cr.get(res_t)
 
-            code.add("""
-                     |
-                     |def $py_name(self):""", locals())
+            # code.add("""
+            #          |
+            #          |def $py_name(self):""", locals())
+            # code.add("""
+            #          |
+            #          |$py_name = function(){""", locals())
 
-            call_stmt = "<%s>(deref(self.inst.get()))" % cy_t
+            # call_stmt = "<%s>(deref(self.inst.get()))" % cy_t
+            call_stmt = "private$py_obj$%s()" % (py_name)
             full_call_stmt = out_converter.call_method(res_t, call_stmt)
 
-            if isinstance(full_call_stmt, basestring):
-                code.add("""
-                    |    $full_call_stmt
-                    """, locals())
-            else:
-                code.add(full_call_stmt)
+            # if isinstance(full_call_stmt, basestring):
+            #     code.add("""
+            #         |    $full_call_stmt
+            #         """, locals())
+            # else:
+            #     code.add(full_call_stmt)
 
-            to_py_code = out_converter.output_conversion(res_t, "_r", "py_res")
+            to_py_code = out_converter.output_conversion(res_t, "py_ans", "r_ans")
             if isinstance(to_py_code, basestring):
                 to_py_code = "    %s" % to_py_code
-            code.add(to_py_code)
-            code.add("""    return py_res""")
+
+            if class_name == "DataValue" and py_name == "toString":
+                pass
+            else:
+                code.add("""
+                         |$class_name$$set("public","$py_name",
+                         |  function(){
+                         |      $full_call_stmt
+                         |      $to_py_code
+                         |      return(r_ans)
+                         |  }
+                         |)
+                         |""", locals())
+
             codes.append(code)
         return codes
 
     def create_special_cmp_method(self, cdcl, ops):
-        L.info("   create wrapper __richcmp__")
+        L.info("   create wrapper for comparions methods")
         meth_code = Code.Code()
         name = cdcl.name
         op_code_map = {'<': 0,
@@ -1526,27 +1582,41 @@ class CodeGenerator(object):
                        '<=': 1,
                        '!=': 3,
                        '>=': 5, }
-        inv_op_code_map = dict((v, k) for (k, v) in op_code_map.items())
+        # inv_op_code_map = dict((v, k) for (k, v) in op_code_map.items())
 
-        implemented_op_codes = tuple(op_code_map[k] for (k, v) in ops.items() if v)
-        meth_code.add("""
-           |
-           |def __richcmp__(self, other, op):
-           |    if op not in $implemented_op_codes:
-           |       op_str = $inv_op_code_map[op]
-           |       raise Exception("comparions operator %s not implemented" % op_str)
-           |    if not isinstance(other, $name):
-           |        return False
-           |    cdef $name other_casted = other
-           |    cdef $name self_casted = self
-           """, locals())
-
+        # implemented_op_codes = tuple(op_code_map[k] for (k, v) in ops.items() if v)
+        implemented_op_codes = list(k for (k,v) in op_code_map.items())
         for op in implemented_op_codes:
-            op_sign = inv_op_code_map[op]
-            meth_code.add("""    if op==$op:
-                            |        return deref(self_casted.inst.get())
-                            + $op_sign deref(other_casted.inst.get())""",
-                          locals())
+            meth_code.add("""
+               |#' @export
+               |`$op.$name` = function(e1,e2){
+               |    stopifnot(is.R6(e1))
+               |    stopifnot(is.R6(e2))
+               |    tryCatch({
+               |        e1$$.__enclos_env__$$private$$py_obj $op e2$$.__enclos_env__$$private$$py_obj
+               |    },  error = function(e) { e }
+               |    )
+               |}
+               """, locals())
+
+        # meth_code.add("""
+        #    |
+        #    |def __richcmp__(self, other, op):
+        #    |    if op not in $implemented_op_codes:
+        #    |       op_str = $inv_op_code_map[op]
+        #    |       raise Exception("comparions operator %s not implemented" % op_str)
+        #    |    if not isinstance(other, $name):
+        #    |        return False
+        #    |    cdef $name other_casted = other
+        #    |    cdef $name self_casted = self
+        #    """, locals())
+
+        # for op in implemented_op_codes:
+        #     op_sign = inv_op_code_map[op]
+        #     meth_code.add("""    if op==$op:
+        #                     |        return deref(self_casted.inst.get())
+        #                     + $op_sign deref(other_casted.inst.get())""",
+        #                   locals())
         return meth_code
 
     # creates copy and deepcopy methods for classes.
@@ -1673,7 +1743,13 @@ class CodeGenerator(object):
                 |
                 |# Returns the name of wrapper R6 class
                 |class_to_wrap <- function(py_ob){
-                |       strsplit(class(py_ob)[1],"\\\.")[[1]][2]
+                |       class <- tail(strsplit(class(py_ob)[1],"\\\.")[[1]],n = 1)
+                |       # To correctly return the class name for Interfaces (BinaryDataArray,Chromatogram,Spectrum) by removing "_Interfaces_"
+                |       comp <- strsplit(class,"_Interfaces_")[[1]]
+                |       if (length(comp) == 1 && comp[1] == class){
+                |           return(class)
+                |       }
+                |       else { return(comp[-1]) }
                 |}
                 """ % lib)
         self.top_level_code.append(helper)

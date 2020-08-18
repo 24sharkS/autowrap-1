@@ -83,10 +83,9 @@ class ConverterRegistry(object):
             self.lookup[base_type].append(converter)
 
     def get(self, cpp_type):
-        print(cpp_type.base_type)
+        print("Base Type is: ",cpp_type.base_type)
         rv = [conv for conv in self.lookup[cpp_type.base_type]
               if conv.matches(cpp_type)]
-        print(rv)
         if len(rv) < 1:
             raise Exception("no converter for %s" % cpp_type)
 
@@ -476,7 +475,11 @@ class TypeToWrapConverter(TypeConverterBase):
     #not final
     def type_check_expression(self, cpp_type, argument_var):
         # cpp_type = cpp_type.replace('&','')
-        return "is.R6({}) && class({})[1] == \"{}\"".format(argument_var,argument_var,cpp_type.base_type)
+        t = cpp_type.base_type
+        temp = t.split("_Interfaces_")
+        if len(temp) > 1:
+            t = temp[-1]
+        return "is.R6({}) && class({})[1] == \"{}\"".format(argument_var,argument_var,t)
         #return "isinstance(%s, %s)" % (argument_var, cpp_type.base_type)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
@@ -525,6 +528,9 @@ class TypeToWrapConverter(TypeConverterBase):
         # output_py_var : output_r_var
         # input_cpp_var : input_py_var
         t = cpp_type.base_type
+        temp = t.split("_Interfaces_")
+        if len(temp) > 1:
+            t = temp[-1]
         return Code().add("""
                       |$output_r_var = $t$$new($input_py_var)
         """, locals())
@@ -781,11 +787,12 @@ class StdMapConverter(TypeConverterBase):
         #       + && length(unique(names($arg_var))) == length(names($arg_var)))
         #       """, locals()).render()
 
-        return Code().add("""
-          |is.environment($arg_var) && identical(parent.env($arg_var), asNamespace("collections")) && identical(strsplit(capture.output($arg_var$$$$print())," ")[[1]][1], "dict")
-          + && all(sapply($arg_var$$$$keys(),function(k) $inner_check_1))
-          + && all(sapply($arg_var$$$$values(),function(v) $inner_check_2))
-          """, locals()).render()
+        return """
+          is.environment(%s) && identical(parent.env(%s), asNamespace("collections")) && identical(strsplit(capture.output(%s$print())," ")[[1]][1], "dict")
+          && all(sapply(%s$keys(),function(k) %s))
+          && all(sapply(%s$values(),function(v) %s))
+          """ % (arg_var,arg_var,arg_var,arg_var,inner_check_1,arg_var,inner_check_2)
+
         # return Code().add("""
         #   |isinstance($arg_var, dict)
         #   + and all($inner_check_1 for k in $arg_var.keys())
@@ -1123,9 +1130,9 @@ class StdSetConverter(TypeConverterBase):
         inner_check = inner_conv.type_check_expression(tt, "el")
 
         if isinstance(inner_conv,TypeToWrapConverter):
-            return Code().add("""
-              |is_list($arg_var) && all(sapply($arg_var,function(el) $inner_check)) && length($arg_var) == py_to_r(py_builtin$$$$len(py_builtin$$$$set($arg_var)))
-              """, locals()).render()
+            return """
+              is_list(%s) && all(sapply(%s,function(el) %s)) && length(%s) == py_to_r(py_builtin$len(py_builtin$set(%s)))
+              """ % (arg_var,arg_var,inner_check,arg_var,arg_var)
         else:
             return Code().add("""
               |is_list($arg_var) && all(sapply($arg_var,function(el) $inner_check)) && !(TRUE %in% duplicated($arg_var))
@@ -1570,7 +1577,6 @@ class StdVectorConverter(TypeConverterBase):
         inner = self.converters.cython_type(tt)
         cy_tt = tt.base_type
 
-        print("Inner converter :", inner)
         # to check for pass by reference.
         cr_ref = False
 
@@ -1759,7 +1765,7 @@ class StdVectorConverter(TypeConverterBase):
             while(k.base_type == "libcpp_vector"):
                 depth_cnt+=1
                 k, = k.template_args
-            print(k.base_type)
+
             if k.base_type == "libcpp_string":
                 code = Code().add("""
                     |$temp_var <- r_to_py(modify_depth($argument_var,$depth_cnt, function(a) py_builtin$$bytes(a, 'utf-8')))
@@ -2025,7 +2031,7 @@ class StdStringConverter(TypeConverterBase):
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
         cr_ref = False
-        code = "%s_%s = py_builtin$bytes(%s,'utf-8')" % (argument_var,arg_num,argument_var)
+        code = "%s_%s = py_builtin$$bytes(%s,'utf-8')" % (argument_var,arg_num,argument_var)
         call_as = "%s" % argument_var
         cleanup = ""
         return code, call_as, cleanup, cr_ref
@@ -2112,14 +2118,22 @@ class SharedPtrConverter(TypeConverterBase):
         # environments are passed by reference in R
         if cpp_type.is_ref and not cpp_type.is_const:
             cr_ref = True
+            tt = tt.toString(False)
+            temp = tt.split("_Interfaces_")
+            if len(temp) > 1:
+                tt = temp[-1]
             cleanup = Code().add("""
-                |byref_${arg_num} = py_to_r(input_$argument_var)
+                |byref_${arg_num} = $tt$$new(input_$argument_var)
                 """, locals())
         return code, call_as, cleanup, cr_ref
 
     def type_check_expression(self, cpp_type, argument_var):
         # We can just use the Python type of the template argument
         tt, = cpp_type.template_args
+        tt = tt.toString(False)
+        temp = tt.split("_Interfaces_")
+        if len(temp) > 1:
+            tt = temp[-1]
         return "all(class({}) == c('{}','R6'))".format(argument_var,tt)
         # return "isinstance(%s, %s)" % (argument_var, tt)
 
@@ -2132,6 +2146,12 @@ class SharedPtrConverter(TypeConverterBase):
             # If the template argument is constant, we need to have non-const base-types for our code
             inner = self.converters.cython_type(tt).toString(False)
             tt = tt.toString(withConst=False)
+        else:
+            tt = tt.toString(withConst=False)
+
+        temp = tt.split("_Interfaces_")
+        if len(temp) > 1:
+            tt = temp[-1]
 
         code.add("""
             |$output_py_var = $tt$$new($input_cpp_var)
