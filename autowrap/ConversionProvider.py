@@ -239,7 +239,7 @@ class IntegerConverter(TypeConverterBase):
         return ""
 
     def type_check_expression(self, cpp_type, argument_var):
-        return " (is_scalar_integer(%s) || is_scalar_double(%s)) && %s == as.integer(%s)" % (argument_var,argument_var,argument_var,argument_var)
+        return "is.numeric(%s) && length(%s) == 1 && isTRUE(all.equal(%s,as.integer(%s)))" % (argument_var,argument_var,argument_var,argument_var)
         #return "isinstance(%s, (int, long))" % (argument_var,)
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
@@ -369,9 +369,12 @@ class CharConverter(TypeConverterBase):
     # not final
     def input_conversion(self, cpp_type, argument_var, arg_num):
         cr_ref = False
-        code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
-        call_as = "py$%s" % argument_var
-        cleanup = "py_run_string(\"del %s\")" % argument_var
+        code = "py_builtin$bytes(%s,'utf-8')" % (argument_var)
+        # code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
+        # call_as = "py$%s" % argument_var
+        call_as = "%s" % argument_var
+        cleanup = ""
+        # cleanup = "py_run_string(\"del %s\")" % argument_var
         #code = ""
         #call_as = "(<char>((%s)[0]))" % argument_var
         #cleanup = ""
@@ -404,9 +407,12 @@ class ConstCharPtrConverter(TypeConverterBase):
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
         cr_ref = False
-        code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
-        call_as = "py%s" % argument_var
-        cleanup = "py_run_string(\"del %s\")" % argument_var
+        code = "py_builtin$bytes(%s,'utf-8')" % (argument_var)
+        # code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
+        call_as = "%s" % argument_var
+        # call_as = "py%s" % argument_var
+        cleanup = "" 
+        # cleanup = "py_run_string(\"del %s\")" % argument_var
         # code = Code().add("cdef const_char * input_%s = <const_char *> %s" % (argument_var, argument_var))
         # call_as = "input_%s" % argument_var
         # cleanup = ""
@@ -440,9 +446,11 @@ class CharPtrConverter(TypeConverterBase):
 
     def input_conversion(self, cpp_type, argument_var, arg_num):
         cr_ref = False
-        code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
+        # code = "py_run_string(\"%s = bytes(%s)\")" % (argument_var, argument_var,)
+        code = "py_builtin$bytes(%s,'utf-8')" % (argument_var)
         call_as = "%s" % argument_var
-        cleanup = "py_run_string(\"del %s\")" % argument_var
+        # cleanup = "py_run_string(\"del %s\")" % argument_var
+        cleanup = "" % argument_var
         # code = ""
         # call_as = "(<char *>%s)" % argument_var
         # cleanup = ""
@@ -564,7 +572,7 @@ class StdPairConverter(TypeConverterBase):
         inner_check2 = inner_conv2.type_check_expression(t2, "%s[[2]]" % arg_var)
 
         return Code().add("""
-          |is_list($arg_var) && length($arg_var) == 2 && $inner_check1
+          |is.vector($arg_var) && length($arg_var) == 2 && $inner_check1
           + && $inner_check2
           """, locals()).render()
         # return Code().add("""
@@ -584,19 +592,19 @@ class StdPairConverter(TypeConverterBase):
         code = Code()
         if i1.is_enum:
             assert not t1.is_ptr
-            arg0 = "%s[[1]]" % (argument_var)
+            arg0 = "as.integer(%s[[1]])" % (argument_var)
             #arg0 = "(<%s>%s[0])" % (t1, argument_var)
         elif t1.base_type in self.converters.names_of_wrapper_classes:
             assert not t1.is_ptr
-            arg0 = "%s[[1]]$.__enclos_env__$private$py_obj" % (argument_var)
+            arg0 = "%s[[1]]" % (argument_var)
             #arg0 = "deref((<%s>%s[0]).inst.get())" % (t1, argument_var)
         else:
             if isinstance(inner_conv1,(CharConverter,ConstCharPtrConverter,CharPtrConverter,StdStringConverter)):
-                code.add("""
-                    |py$$str0 <- $argument_var[[1]]
-                    |py_run_string(\"str0 = bytes(str0,'utf-8')\")
-                    """, locals())
-                arg0 = "py$str0"
+                # code.add("""
+                #     |py$$str0 <- $argument_var[[1]]
+                #     |py_run_string(\"str0 = bytes(str0,'utf-8')\")
+                #     """, locals())
+                arg0 = "py_builtin$bytes(%s[[1]],'utf-8')" % (argument_var)
             else:
                 if isinstance(inner_conv1,IntegerConverter):
                     arg0 = "as.integer(%s[[1]])" % argument_var
@@ -604,19 +612,19 @@ class StdPairConverter(TypeConverterBase):
                     arg0 = "%s[[1]]" % argument_var
         if i2.is_enum:
             assert not t2.is_ptr
-            arg1 = "%s[[2]]"
+            arg1 = "as.integer(%s[[2]])"
             # arg1 = "(<%s>%s[0])" % (t2, argument_var)
         elif t2.base_type in self.converters.names_of_wrapper_classes:
             assert not t2.is_ptr
-            arg1 = "%s[[2]]$.__enclos_env__$private$py_obj" % (argument_var)
+            arg1 = "%s[[2]]" % (argument_var)
             # arg1 = "deref((<%s>%s[1]).inst.get())" % (t2, argument_var)
         else:
             if isinstance(inner_conv2,(CharConverter,ConstCharPtrConverter,CharPtrConverter,StdStringConverter)):
-                code.add("""
-                    |py$$str1 <- $argument_var[[2]]
-                    |py_run_string(\"str1 = bytes(str1,'utf-8')\")
-                    """, locals())
-                arg1 = "py$str1"
+                # code.add("""
+                #     |py$$str1 <- $argument_var[[2]]
+                #     |py_run_string(\"str1 = bytes(str1,'utf-8')\")
+                #     """, locals())
+                arg1 = "py_builtin$bytes(%s[[2]],'utf-8')" % (argument_var)
             else:
                 if isinstance(inner_conv2,IntegerConverter):
                     arg1 = "as.integer(%s[[2]])" % argument_var
@@ -664,21 +672,6 @@ class StdPairConverter(TypeConverterBase):
             # cleanup_code.add("""
             #     |$argument_var[:] = [$temp1, $temp2]
             #     """, locals())
-        cleanup = False
-        if isinstance(inner_conv1,(CharConverter,ConstCharPtrConverter,CharPtrConverter,StdStringConverter)):
-            cleanup_code.add("""
-                |py_run_string("del str0")
-                """)
-            cleanup = True
-        if isinstance(inner_conv2,(CharConverter,ConstCharPtrConverter,CharPtrConverter,StdStringConverter)):
-            cleanup_code.add("""
-                |py_run_string("del str1")
-                """)
-            cleanup = True
-        if cleanup:
-            cleanup_code.add("""
-                |py_run_string("gc.collect()")
-                """)
         return code, "%s" % temp_var, cleanup_code, cr_ref
 
     def call_method(self, res_type, cy_call_str):
@@ -708,7 +701,7 @@ class StdPairConverter(TypeConverterBase):
         elif t1.base_type in self.converters.names_of_wrapper_classes:
             out1 = "out1"
             # input_cpp_var : input_r_var
-            code.add("""out1 = $t1$$new($input_r_var[[1]])
+            code.add("""$out1 = $t1$$new($input_r_var[[1]])
                        """, locals())
             # code.add("""cdef $t1 out1 = $t1.__new__($t1)
             #            |out1.inst = shared_ptr[$i1](new $i1($input_cpp_var.first))
@@ -720,13 +713,13 @@ class StdPairConverter(TypeConverterBase):
                 out1 = "%s[[1]]" % input_r_var
         if i2.is_enum:
             out2 = "out2"
-            code.add("""out2 = $input_r_var[[2]]
+            code.add("""$out2 = $input_r_var[[2]]
                        """, locals())
             # code.add("""cdef $i2 out2 = (<$i2> $input_cpp_var.second)
             #            """, locals())
         elif t2.base_type in self.converters.names_of_wrapper_classes:
             out2 = "out2"
-            code.add("""out2 = $t2$$new($input_r_var[[2]])
+            code.add("""$out2 = $t2$$new($input_r_var[[2]])
                        """, locals())
             # code.add("""cdef $t2 out2 = $t2.__new__($t2)
             #            |out2.inst = shared_ptr[$i2](new $i2($input_cpp_var.second))
@@ -926,12 +919,12 @@ class StdMapConverter(TypeConverterBase):
             value_conv = "%s$values()" % argument_var
 
         if cy_tt_key.is_enum:
-            key_conv = "modify_depth(%s$keys(),1,as.integer)" % argument_var
+            key_conv = "as.integer(%s$keys())" % argument_var
         elif tt_key.base_type in self.converters.names_of_wrapper_classes:
             key_conv = "%s$keys()" % argument_var
             # key_conv = "deref(<%s *> (<%s> key).inst.get())" % (cy_tt_key, py_tt_key)
         elif tt_key.base_type == "int":
-            key_conv = "modify_depth(%s$keys(),1,as.integer)" % argument_var
+            key_conv = "as.integer(%s$keys())" % argument_var
         elif tt_key.base_type == "libcpp_string":
             key_conv = "modify_depth(%s$keys(),1,function(a) py_builtin$bytes(a,'utf-8'))" % argument_var
         elif tt_key in self.converters:
@@ -975,7 +968,8 @@ class StdMapConverter(TypeConverterBase):
                     and not tt_key.base_type in self.converters.names_of_wrapper_classes:
                 cy_tt = tt_value.base_type
                 item = mangle("item_" + argument_var)
-                if tt_key.base_type == "libcpp_string":
+                k_conv = self.converters.get(tt_key)
+                if isinstance(k_conv,(CharConverter,CharPtrConverter,ConstCharPtrConverter,StdStringConverter,StdStringUnicodeConverter)):
                     cleanup_code = Code().add("""
                         |byref_${arg_num} <- collections::dict(lapply(py_to_r(py_builtin$$list($temp_var$$values())),function(i) ${cy_tt}$$new(i)), lapply(py_to_r(py_builtin$$list($temp_var$$keys())),as.character))
                         """, locals())
@@ -998,18 +992,18 @@ class StdMapConverter(TypeConverterBase):
                 #     """, locals())
             else:
                 cleanup_code = Code().add("")
+                k_conv = self.converters.get(tt_key)
                 if tt_value.base_type == "libcpp_vector":
-                    if tt_key.base_type == "libcpp_string":
-                        if tt_val.base_type == "int":
-                            depth_cnt-=1
+                    if isinstance(k_conv,(CharConverter,CharPtrConverter,ConstCharPtrConverter,StdStringConverter,StdStringUnicodeConverter)):
+                        if tt_val.base_type == "int" or "double":
                             cleanup_code = Code().add("""
-                            |byref_${arg_num} <- collections::dict(modify_depth(py_to_r(py_builtin$$list($temp_var$$values())),$depth_cnt,as.list), lapply(py_to_r(py_builtin$$list($temp_var$$keys())),as.character))
+                            |byref_${arg_num} <- collections::dict(py_to_r(py_builtin$$list($temp_var$$values())), lapply(py_to_r(py_builtin$$list($temp_var$$keys())),as.character))
                             """, locals())
                         elif tt_val.base_type == "libcpp_pair":
                             t1,t2 == tt_val.template_args
                             if t1.base_type == "int" and t2.base_type == "int":
                                 cleanup_code = Code().add("""
-                                |byref_${arg_num} <- collections::dict(modify_depth(py_to_r(py_builtin$$list($temp_var$$values())),$depth_cnt,as.list), lapply(py_to_r(py_builtin$$list($temp_var$$keys())),as.character))
+                                |byref_${arg_num} <- collections::dict(py_to_r(py_builtin$$list($temp_var$$values())), lapply(py_to_r(py_builtin$$list($temp_var$$keys())),as.character))
                                 """, locals())
                             else:
                                 cleanup_code = Code().add("""
@@ -1021,15 +1015,14 @@ class StdMapConverter(TypeConverterBase):
                             """, locals())
                     else:
                         if tt_val.base_type == "int":
-                            depth_cnt-=1
                             cleanup_code = Code().add("""
-                            |byref_${arg_num} <- collections::dict(modify_depth(py_to_r(py_builtin$$list($temp_var$$values())),$depth_cnt,as.list), py_to_r(py_builtin$$list($temp_var$$keys())))
+                            |byref_${arg_num} <- collections::dict(py_to_r(py_builtin$$list($temp_var$$values())), py_to_r(py_builtin$$list($temp_var$$keys())))
                             """, locals())
                         elif tt_val.base_type == "libcpp_pair":
                             t1,t2 == tt_val.template_args
                             if t1.base_type == "int" and t2.base_type == "int":
                                 cleanup_code = Code().add("""
-                                |byref_${arg_num} <- collections::dict(modify_depth(py_to_r(py_builtin$$list($temp_var$$values())),$depth_cnt,as.list), py_to_r(py_builtin$$list($temp_var$$keys())))
+                                |byref_${arg_num} <- collections::dict(py_to_r(py_builtin$$list($temp_var$$values())), py_to_r(py_builtin$$list($temp_var$$keys())))
                                 """, locals())
                             else:
                                 cleanup_code = Code().add("""
@@ -1129,13 +1122,13 @@ class StdSetConverter(TypeConverterBase):
         assert inner_conv is not None, "arg type %s not supported" % tt
         inner_check = inner_conv.type_check_expression(tt, "el")
 
-        if isinstance(inner_conv,TypeToWrapConverter):
+        if isinstance(inner_conv,(TypeToWrapConverter)):
             return """
-              is_list(%s) && all(sapply(%s,function(el) %s)) && length(%s) == py_to_r(py_builtin$len(py_builtin$set(%s)))
+              |is.vector(%s) && all(sapply(%s,function(el) %s)) && length(%s) == py_to_r(py_builtin$len(py_builtin$set(%s)))
               """ % (arg_var,arg_var,inner_check,arg_var,arg_var)
         else:
             return Code().add("""
-              |is_list($arg_var) && all(sapply($arg_var,function(el) $inner_check)) && !(TRUE %in% duplicated($arg_var))
+              |is.vector($arg_var) && all(sapply($arg_var,function(el) $inner_check)) && !(TRUE %in% duplicated($arg_var))
               """, locals()).render()
 
         # return Code().add("""
@@ -1153,8 +1146,7 @@ class StdSetConverter(TypeConverterBase):
         if inner.is_enum:
             item = "item%d" % arg_num
             code = Code().add("""
-                |py$$$temp_var <- $argument_var
-                |py_run_string(\"$temp_var = [int(t) for t in $temp_var];$temp_var = set($temp_var)\")
+                |$temp_var <- py_builtin$$set(lapply($argument_var,as.integer))
                 """, locals())
             # code = Code().add("""
             #     |cdef libcpp_set[$inner] * $temp_var = new libcpp_set[$inner]()
@@ -1165,8 +1157,7 @@ class StdSetConverter(TypeConverterBase):
             if cpp_type.is_ref and not cpp_type.is_const:
                 cr_ref = True
                 cleanup_code = Code().add("""
-                    |byref_$arg_num <- as.list(py_eval("list($temp_var)"))
-                    |py_run_string("del $temp_var; gc.collect()")
+                    |byref_${arg_num} <- py_to_r(py_builtin$$list($temp_var))
                     """, locals())
 
                 # cleanup_code = Code().add("""
@@ -1181,8 +1172,8 @@ class StdSetConverter(TypeConverterBase):
                 #     """, locals())
             else:
                 # check if not working
-                cleanup_code = "py_run_string('del %s');gc.collect()" % temp_var
-            return code, "py$%s" % temp_var, cleanup_code, cr_ref
+                cleanup_code = ""
+            return code, "%s" % temp_var, cleanup_code, cr_ref
 
         elif tt.base_type in self.converters.names_of_wrapper_classes:
             base_type = tt.base_type
@@ -1196,8 +1187,7 @@ class StdSetConverter(TypeConverterBase):
             cy_tt = tt.base_type
             item = "item%d" % arg_num
             code = Code().add("""
-                |py$$$temp_var <- lapply($argument_var,function($item) $item$$.__enclos_env__$$private$$py_obj)
-                |py_run_string("$temp_var = set($temp_var)")
+                |$temp_var <- py_builtin$$set($argument_var)
                 """, locals())
             # code = Code().add("""
             #     |cdef libcpp_set[$inner] * $temp_var = new libcpp_set[$inner]()
@@ -1209,9 +1199,7 @@ class StdSetConverter(TypeConverterBase):
                 cr_ref = True
                 instantiation = self._codeForInstantiateObjectFromIter(inner, it)
                 cleanup_code = Code().add("""
-                    |byref_$arg_num <- py_eval("list($temp_var)")
-                    |byref_$arg_num <- lapply(byref_$arg_num,function(x) $cy_tt$$new(x))
-                    |py_run_string("del $temp_var; gc.collect()")
+                    |byref_${arg_num} <- lapply(py_to_r(py_builtin$$list($temp_var)),function(t) $cy_tt$$new(t))
                     """, locals())
 
                 # cleanup_code = Code().add("""
@@ -1228,21 +1216,19 @@ class StdSetConverter(TypeConverterBase):
                 #     """, locals())
 
             else:
-                cleanup_code = "py_run_string('del %s;gc.collect()')" % temp_var
+                cleanup_code = ""
                 # cleanup_code = "del %s" % temp_var
-            return code, "py$%s" % temp_var, cleanup_code, cr_ref
+            return code, "%s" % temp_var, cleanup_code, cr_ref
         else:
             inner = self.converters.cython_type(tt)
             # cython cares for conversion of stl containers with std types:
             if isinstance(inner_conv,IntegerConverter):
                 code = Code().add("""
-                    |py$$$temp_var <- $argument_var
-                    |py_run_string("$temp_var = [int(t) for t in $temp_var];$temp_var = set($temp_var)")
+                    |$temp_var <- py_builtin$$set(lapply($argument_var,as.integer))
                     """, locals())
             else:
                 code = Code().add("""
-                    |py$$$temp_var <- $argument_var
-                    |py_run_string("$temp_var = set($temp_var)")
+                    |$temp_var <- py_builtin$$set($argument_var)
                     """, locals())
 
             # code = Code().add("""
@@ -1253,14 +1239,13 @@ class StdSetConverter(TypeConverterBase):
             if cpp_type.is_ref and not cpp_type.is_const:
                 cr_ref = True
                 cleanup_code = Code().add("""
-                    |byref_$arg_num <- as.list(py_eval("list($temp_var)"))
-                    |py_run_string("del $temp_var; gc.collect()")
+                    |byref_$arg_num <- py_to_r(py_builtin$$list($temp_var))
                     """, locals())
                 # cleanup_code = Code().add("""
                 #     |$argument_var.clear()
                 #     |$argument_var.update($temp_var)
                 #     """, locals())
-            return code, "py$%s" % temp_var, cleanup_code, cr_ref
+            return code, "%s" % temp_var, cleanup_code, cr_ref
 
     def call_method(self, res_type, cy_call_str):
         return "py_ans = %s" % (cy_call_str)
@@ -1277,9 +1262,7 @@ class StdSetConverter(TypeConverterBase):
             # if python list elements are of same type (int/long/float) then reticulate converts the python list into vector
             # rather than list. Therefore, converting returned vector to list in such cases.
             code = Code().add("""
-                |py$$res <- $input_cpp_var
-                |$output_py_var = as.list(py_eval("list(res)"))
-                |py_run_string("del res;gc.collect()")
+                |$output_py_var <- py_to_r(py_builtin$$list($input_cpp_var))
                 """, locals())
             # code = Code().add("""
             #     |$output_py_var = set()
@@ -1299,10 +1282,7 @@ class StdSetConverter(TypeConverterBase):
             instantiation = self._codeForInstantiateObjectFromIter(inner, it)
             # input_cpp_var : input_py_var
             code = Code().add("""
-                |py$$res <- $input_cpp_var
-                |$output_py_var = py_eval("list(res)")
-                |$output_py_var <- lapply($output_py_var, function(x) $cy_tt$$new(x))
-                |py_run_string("del res;gc.collect()")
+                |$output_py_var <- lapply(py_to_r(py_builtin$$list($input_cpp_var)), function(a) $cy_tt$$new(a))
                 """, locals())
             # code = Code().add("""
             #     |$output_py_var = set()
@@ -1317,9 +1297,7 @@ class StdSetConverter(TypeConverterBase):
             return code
         else:
             code = Code().add("""
-                |py$$res <- $input_cpp_var
-                |$output_py_var = as.list(py_eval("list(res)"))
-                |py_run_string("del res;gc.collect()")
+                |$output_py_var <- py_to_r(py_builtin$$list($input_cpp_var))
                 """, locals())
             return code
 
@@ -1348,7 +1326,7 @@ class StdVectorConverter(TypeConverterBase):
         inner_check = inner_conv.type_check_expression(tt, arg_var_next)
 
         return Code().add("""
-          |is_list($arg_var) && all(sapply($arg_var,function($arg_var_next) $inner_check))
+          |is.vector($arg_var) && all(sapply($arg_var,function($arg_var_next) $inner_check))
           """, locals()).render()
         # return Code().add("""
         #   |isinstance($arg_var, list) and all($inner_check for $arg_var_next in $arg_var)
@@ -1612,7 +1590,7 @@ class StdVectorConverter(TypeConverterBase):
             if cpp_type.topmost_is_ref and not cpp_type.topmost_is_const:
                 cr_ref = True
                 cleanup_code = Code().add("""
-                    |byref_${arg_num} <- as.list(py_to_r($temp_var))
+                    |byref_${arg_num} <- py_to_r($temp_var)
                     """, locals())
                 # cleanup_code = Code().add("""
                 #     |replace = []
@@ -1650,7 +1628,7 @@ class StdVectorConverter(TypeConverterBase):
             if cpp_type.topmost_is_ref and not cpp_type.topmost_is_const:
                 cr_ref = True
                 cleanup_code = Code().add("""
-                    |byref_${arg_num} <- map(py_to_r($temp_var),function(t) eval(parse(text = paste0(class_to_wrap(t),\"$$\",\"new(t)\"))))
+                    |byref_${arg_num} <- map(py_to_r($temp_var),function(t) $base_type$$new(t))
                     """, locals())
                 # cleanup_code = Code().add("""
                 #     |replace = []
@@ -1698,7 +1676,7 @@ class StdVectorConverter(TypeConverterBase):
             if cpp_type.topmost_is_ref and not cpp_type.topmost_is_const:
                 cr_ref = True
                 cleanup_code = Code().add("""
-                    |byref_${arg_num} <- map(py_to_r($temp_var),function(t) eval(parse(text = paste0($base_type,\"$$\","new(t)"))))
+                    |byref_${arg_num} <- map(py_to_r($temp_var),function(t) $base_type$$new(t))
                     """, locals())
 
                 # cleanup_code = Code().add("""
@@ -1741,7 +1719,7 @@ class StdVectorConverter(TypeConverterBase):
                 cr_ref = True
                 cleanup_code = Code().add("""
                     |$temp_var <- py_to_r($temp_var)
-                    |byref_${arg_num} <- map_depth($temp_var,listDepth($temp_var),function(t) eval(parse(text = paste0(class_to_wrap(t),\"$$\","new(t)"))))
+                    |byref_${arg_num} <- map_depth($temp_var,listDepth($temp_var),function(t) eval(parse(text = paste0(class_to_wrap(t),"$$","new(t)"))))
                     """, locals())
 
             # if code_top != "":
@@ -1765,16 +1743,18 @@ class StdVectorConverter(TypeConverterBase):
             while(k.base_type == "libcpp_vector"):
                 depth_cnt+=1
                 k, = k.template_args
+            
+            conv_k = self.converters.get(k)
 
-            if k.base_type == "libcpp_string":
+            if isinstance(conv_k,StdStringConverter):
                 code = Code().add("""
-                    |$temp_var <- r_to_py(modify_depth($argument_var,$depth_cnt, function(a) py_builtin$$bytes(a, 'utf-8')))
+                    |$temp_var <- r_to_py(map_depth($argument_var,$depth_cnt, function(a) py_builtin$$bytes(a, 'utf-8')))
                     """, locals())
-            elif k.base_type == "int":
+            elif isinstance(conv_k,IntegerConverter):
                 code = Code().add("""
-                    |$temp_var <- r_to_py(modify_depth($argument_var,$depth_cnt,as.integer))
+                    |$temp_var <- r_to_py(map_depth($argument_var,$depth_cnt,as.integer))
                     """, locals())
-            elif k.base_type == "libcpp_pair":
+            elif isinstance(conv_k,StdPairConverter):
                 t1, t2 = k.template_args
                 if t1.base_type == "int":
                     if t2.base_type == "int":
@@ -1820,94 +1800,21 @@ class StdVectorConverter(TypeConverterBase):
                     |$temp_var <- r_to_py($argument_var)
                     """, locals())
 
-            # inner = self.converters.cython_type(tt)
-            # inner_conv = self.converters.get(tt)
-            # cython cares for conversion of stl containers with std types:
-            # if isinstance(inner_conv,IntegerConverter):
-            #     code = Code().add("""
-            #         |$temp_var <- r_to_py(map($argument_var,as.integer))
-            #         """, locals())
-            # elif isinstance(inner_conv,StdStringConverter):
-            #     code = Code().add("""
-            #         |$temp_var <- r_to_py(map($argument_var,function(a) py_builtin$$bytes(a,'utf-8')))
-            #         """, locals())
-            # elif isinstance(inner_conv,StdPairConverter):
-            #     in1, in2 = inner.template_args
-            #     print("Base Types of these converters are: ",in1.base_type,in2.base_type)
-            #     # in1 = self.converters.get(in1)
-            #     # in2 = self.converters.get(in2)
-            #     if in1.base_type == "int":
-            #         if in2.base_type == "int":
-            #             code = Code().add("""
-            #                 |$temp_var <- r_to_py(lapply($argument_var,function(a) list(as.integer(a[[1]]), as.integer(a[[2]]))))
-            #                 """, locals())
-            #         elif in2.base_type == "libcpp_string":
-            #             code = Code().add("""
-            #                 |$temp_var <- r_to_py(lapply($argument_var, function(a) list(as.integer(a[[1]]), py_builtin$$bytes(a[[2]], 'utf-8'))))
-            #                 """, locals())
-            #         else:
-            #             code = Code().add("""
-            #                 |$temp_var <- r_to_py(lapply($argument_var, function(a) list(as.integer(a[[1]]), a[[2]])))
-            #                 """, locals())
-            #     elif in2.base_type == "int":
-            #         if in1.base_type == "libcpp_string":
-            #             code = Code().add("""
-            #                 |$temp_var <- r_to_py(lapply($argument_var, function(a) list(py_builtin$$bytes(a[[1]], 'utf-8'), as.integer(a[[2]]))))
-            #                 """, locals())
-            #         else:
-            #             code = Code().add("""
-            #                 |$temp_var <- r_to_py(lapply($argument_var, function(a) list(a[[1]], as.integer(a[[2]]))))
-            #                 """, locals())
-            #     elif in1.base_type == "libcpp_string":
-            #         if in2.base_type == "libcpp_string":
-            #             code = Code().add("""
-            #                 |$temp_var <- r_to_py(lapply($argument_var, function(a) list(py_builtin$$bytes(a[[1]], 'utf-8'), py_builtin$$bytes(a[[2]], 'utf-8'))))
-            #                 """, locals())
-            #         else:
-            #             code = Code().add("""
-            #                 |$temp_var <- r_to_py(lapply($argument_var, function(a) list(py_builtin$$bytes(a[[1]], 'utf-8'), a[[2]])))
-            #                 """, locals())
-            #     elif in2.base_type == "libcpp_string":
-            #         code = Code().add("""
-            #             |$temp_var <- r_to_py(lapply($argument_var, function(a) list(a[[1]], py_builtin$$bytes(a[[2]], 'utf-8'))))
-            #             """, locals())
-            #     else:
-            #         code = Code().add("""
-            #             |$temp_var <- r_to_py($argument_var)
-            #             """, locals())
-            # else:
-            #     code = Code().add("""
-            #         |$temp_var <- r_to_py($argument_var)
-            #         """, locals())
-
             cleanup_code = Code().add("")
             if cpp_type.topmost_is_ref and not cpp_type.topmost_is_const:
                 cr_ref = True
-                if k.base_type == "libcpp_string":
+                if isinstance(conv_k,StdStringConverter):
                     cleanup_code = Code().add("""
                         |byref_${arg_num} <- modify_depth(py_to_r($temp_var),$depth_cnt,as.character)
                         """, locals())
-                elif k.base_type == "int" or k.base_type == "float" or k.base_type == "double":
-                    depth_cnt-=1
+                elif k.base_type in ["int","float","double"] :
                     cleanup_code = Code().add("""
-                        |byref_${arg_num} <- map_depth(py_to_r($temp_var),$depth_cnt,as.list)
+                        |byref_${arg_num} <- py_to_r($temp_var)
                         """, locals())
                 else:
-                    if k.base_type == "libcpp_pair":
-                        depth_cnt-=1
-                        t1,t2 = k.template_args
-                        if (t1.base_type,t2.base_type) == ("int","int"):
-                            cleanup_code = Code().add("""
-                                |byref_${arg_num} <- map_depth(py_to_r($temp_var),$depth_cnt,as.list)
-                                """, locals())
-                        else:
-                            cleanup_code = Code().add("""
-                                |byref_${arg_num} <- py_to_r($temp_var)
-                                """, locals())
-                    else:
-                        cleanup_code = Code().add("""
-                            |byref_${arg_num} <- py_to_r($temp_var)
-                            """, locals())
+                    cleanup_code = Code().add("""
+                        |byref_${arg_num} <- py_to_r($temp_var)
+                        """, locals())
             return code, "%s" % temp_var, cleanup_code, cr_ref
 
     def call_method(self, res_type, cy_call_str):
@@ -1928,7 +1835,7 @@ class StdVectorConverter(TypeConverterBase):
         if inner.is_enum:
             it = mangle("it_" + input_r_var)
             code = Code().add("""
-                |$output_r_var <- as.list($input_r_var)
+                |$output_r_var <- $input_r_var
                 """, locals())
             # code = Code().add("""
             #     |$output_py_var = []
@@ -1947,7 +1854,7 @@ class StdVectorConverter(TypeConverterBase):
 
             # instantiation = self._codeForInstantiateObjectFromIter(inner, it)
             code = Code().add("""
-                |$output_r_var = map($input_r_var,function(i) eval(parse(text = paste0(class_to_wrap(i),\"$$\",\"new(i)\"))))
+                |$output_r_var = map($input_r_var,function(i) $cy_tt$$new(i))
                 """, locals())
             # code = Code().add("""
             #     |$output_py_var = []
@@ -1972,7 +1879,7 @@ class StdVectorConverter(TypeConverterBase):
             cpp_tt, = inner.template_args
 
             code = Code().add("""
-                |$output_r_var = map($input_r_var,function(i) eval(parse(text = paste0($base_type,\"$$\",\"new(i)\"))))
+                |$output_r_var = map($input_r_var,function(i) $base_type$$new(i))
                 """, locals())
             return code
 
@@ -1997,24 +1904,17 @@ class StdVectorConverter(TypeConverterBase):
                         |$output_r_var <- modify_depth($input_r_var,$depth_cnt,as.character)
                         """, locals())
                 elif isinstance(inner_conv, (IntegerConverter, FloatConverter, DoubleConverter, EnumConverter)):
-                    depth_cnt -= 1
                     code = Code().add("""
-                        |$output_r_var <- modify_depth($input_r_var,$depth_cnt,as.list)
+                        |$output_r_var <- $input_r_var
                         """, locals())
                 else:
                     code = Code().add("""
                         |$output_r_var <- $input_r_var
                         """, locals())
             else:
-                if inner_conv in ["UInt"]:
-                    depth_cnt-=1
-                    code = Code().add("""
-                        |$output_r_var <- modify_depth($input_r_var,$depth_cnt,as.list)
-                        """, locals())
-                else:
-                    code = Code().add("""
-                        |$output_r_var <- $input_r_var
-                        """, locals())
+                code = Code().add("""
+                    |$output_r_var <- $input_r_var
+                    """, locals())
             return code
 
 
