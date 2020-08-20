@@ -45,17 +45,17 @@ test_that("Testing LibCppTest Processes",{
       expect_equivalent(t$twist(list("hi",2)),list(2L,"hi"))
 
       # process
-      li = list(1)
+      li = 1
       li2 <- t$process(li)
       expect_equivalent(li,li2)
-      expect_equivalent(li,list(1L,42L))
+      expect_equivalent(li,c(1L,42L))
 
-      in1 <- as.list(1:2)
+      in1 <- 5:6
       out <- t$process2(in1)
       expect_identical(in1,out)
-      expect_equivalent(in1,list(42L,11L))
+      expect_equivalent(in1,c(42L,11L))
       
-      in1 <- list(t,1)
+      in1 <- c(t,1)
       out <- t$process3(in1)
       expect_identical(in1[[1]]$gett(),0L)
       expect_identical(in1[[2]],42L)
@@ -186,14 +186,14 @@ test_that("Testing LibCppTest Processes",{
       d2 <- list()
       t$process22(d1,d2)
       expect_equivalent(d1,list())
-      expect_equivalent(d2,list(42))
+      expect_equivalent(d2,42)
 
       # process 23
       l1 <- list(1,2)
       l2 <- list()
       t$process23(l1,l2)
-      expect_equivalent(l1,list(1L))
-      expect_equivalent(l2,list(2.0))
+      expect_equivalent(l1,1L)
+      expect_equivalent(l2,2.0)
 
       l1 <- list(1,2.0)
       l2 <- list(2,3)
