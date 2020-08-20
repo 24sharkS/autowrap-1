@@ -551,7 +551,7 @@ class CodeGenerator(object):
         if not cons_created:
             class_code.add("""
                             |$rname$$set("public","initialize",function(){
-                            |   private$$py_obj <- Pymod$$rname()
+                            |   private$$py_obj <- Pymod$$$rname()
                             |},overwrite = TRUE)
                             """, locals())
 
