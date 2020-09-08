@@ -99,7 +99,7 @@ test_that("Testing LibCppTest Processes",{
       expect_equivalent(sort(unlist(in_)),as.integer(c(1,2,42)))
       
       # list should be unique
-      in_ <- as.list(EEE$new()$A,EEE$new()$B)
+      in_ <- as.list(EEE()$A,EEE()$B)
       out <- t$process10(in_)
       expect_equivalent(sort(unlist(out)),sort(unlist(in_)))
       expect_equivalent(sort(unlist(in_)),sort(unlist(in_)))
@@ -116,15 +116,15 @@ test_that("Testing LibCppTest Processes",{
       #expect_identical(out,list("1"=2.0))
 
       # process 13
-      out <- t$process13(EEE$new()$A,2)
+      out <- t$process13(EEE()$A,2)
       out$as_list()
-      expect_equivalent(unlist(out$keys()),EEE$new()$A)
+      expect_equivalent(unlist(out$keys()),EEE()$A)
       expect_equivalent(unlist(out$values()),2L)
 
       # process 14
-      out <- t$process14(EEE$new()$A,3)
+      out <- t$process14(EEE()$A,3)
       expect_true(out$has(3L))
-      expect_equivalent(out$get(3L),EEE$new()$A)
+      expect_equivalent(out$get(3L),EEE()$A)
 
       # process 15
       out <- t$process15(12)
@@ -136,7 +136,7 @@ test_that("Testing LibCppTest Processes",{
       expect_equivalent(t$process16(collections::dict(c(2.0,1.0),c(42L,12L))),2.0)
 
       # process 17
-      p17 <- collections::dict(c(2.0,1.0),c(EEE$new()$A,EEE$new()$B))
+      p17 <- collections::dict(c(2.0,1.0),c(EEE()$A,EEE()$B))
       expect_equivalent(t$process17(p17),2.0)
 
       # process 18
