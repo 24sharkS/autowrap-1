@@ -33,9 +33,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-# from .version import *
-import autowrap.DeclResolver
-import autowrap.CodeGenerator
+from .version import *
+
 import logging as L
 L.basicConfig(level=L.INFO)
 
@@ -48,29 +47,33 @@ The autowrap process consists of two steps:
 
 
 def parse(files, root, num_processes=1):
-    # import autowrap.DeclResolver
+    import autowrap.DeclResolver
     return autowrap.DeclResolver.resolve_decls_from_files(files, root, num_processes)
 
-
+# By default target binding is cython
 def generate_code(decls, instance_map, target, debug=False, manual_code=None,
-                  extra_cimports=None, include_boost=True, include_numpy=False, allDecl=[]):
+                  extra_cimports=None, include_boost=True, include_numpy=False, allDecl=[], target_binding = "cython"):
 
-    # import autowrap.CodeGenerator
-    gen = autowrap.CodeGenerator.CodeGenerator(decls,
-                                      instance_map,
-                                      r_target_path=target,
-                                      manual_code=manual_code,
-                                      extra_cimports=extra_cimports,
-                                      allDecl=allDecl)
-    # gen = CodeGenerator.CodeGenerator(decls,
-    #                                   instance_map,
-    #                                   pyx_target_path=target,
-    #                                   manual_code=manual_code,
-    #                                   extra_cimports=extra_cimports,
-    #                                   allDecl=allDecl)
+    import autowrap.CodeGenerator
+    assert target_binding is not None
+
+    if target_binding == "cython":
+        gen = autowrap.CodeGenerator.CodeGeneratorPy(decls,
+                                        instance_map,
+                                        pyx_target_path=target,
+                                        manual_code=manual_code,
+                                        extra_cimports=extra_cimports,
+                                        allDecl=allDecl)
+    elif target_binding == "R":
+        gen = autowrap.CodeGenerator.CodeGeneratorR(decls,
+                                instance_map,
+                                r_target_path=target,
+                                manual_code=manual_code,
+                                extra_cimports=extra_cimports,
+                                allDecl=allDecl)
+
     gen.include_numpy=include_numpy
-    gen.create_r_file(debug)
-    # gen.create_pyx_file(debug)
+    gen.create_base_file(debug)
     includes = gen.get_include_dirs(include_boost)
     print("Autowrap has wrapped %s classes, %s methods and %s enums" % (
         gen.wrapped_classes_cnt,
@@ -80,11 +83,11 @@ def generate_code(decls, instance_map, target, debug=False, manual_code=None,
 
 
 def parse_and_generate_code(files, root, target, debug, manual_code=None,
-                            extra_cimports=None, include_boost=True):
-
+                            extra_cimports=None, include_boost=True,target_binding=None):
+    assert target_binding is not None
     print("Autowrap will start to parse and generate code. "
           "Will parse %s files" % len(files))
     decls, instance_map = parse(files, root)
     print("Done parsing the files, will generate the code...")
     return generate_code(decls, instance_map, target, debug, manual_code,
-                         extra_cimports, include_boost)
+                         extra_cimports, include_boost, target_binding=target_binding)
