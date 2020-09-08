@@ -94,7 +94,3 @@ class Code(object):
 
     def render(self):
         return "\n".join(self._render())
-code = Code()
-code.add("""
-        
-        """,locals())
