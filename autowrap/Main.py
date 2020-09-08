@@ -78,11 +78,11 @@ def _main(argv):
     out = options.out
     __, out_ext = os.path.splitext(out)
 
-    #if out_ext != ".pyx":
-    #    parser.exit(1, "\nout file has wrong extension: '.pyx' required\n")
-
-    if out_ext not in (".r",".R"):
-        parser.exit(1,"\nout file has wrong extension: '.R/r' required\n")
+    if out_ext not in (".pyx",".r",".R"):
+        parser.exit(1,"\nout file has wrong extension: '.pyx'/'.r'/'.R' required\n")
+    
+    # set the target binding (python or r)
+    target_binding = "cython" if out_ext==".pyx" else "R"
 
     def collect(from_, extension):
         collected = []
@@ -120,7 +120,7 @@ def _main(argv):
     print("   %5d type converter files to consider" % len(converters))
     print("\n")
 
-    run(pxds, addons, converters, out)
+    run(pxds, addons, converters, out, target_binding=target_binding)
 
 
 def collect_manual_code(addons):
@@ -196,21 +196,24 @@ def run_cython(inc_dirs, extra_opts, out):
     compile(out, options=options)
 
 
-def create_wrapper_code(decls, instance_map, addons, converters, out, extra_inc_dirs, extra_opts, include_boost=True, allDecl=[]):
+def create_wrapper_code(decls, instance_map, addons, converters, out, extra_inc_dirs, extra_opts, include_boost=True, allDecl=[], target_binding = None):
+    assert target_binding is not None
     cimports, manual_code = collect_manual_code(addons)
     register_converters(converters)
     inc_dirs = generate_code(decls, instance_map=instance_map, target=out,
             debug=False, manual_code=manual_code, 
-            extra_cimports=cimports, include_boost=include_boost, allDecl=allDecl)
+            extra_cimports=cimports, include_boost=include_boost, allDecl=allDecl, target_binding = target_binding)
 
     if extra_inc_dirs is not None:
         inc_dirs += extra_inc_dirs
 
-    # run_cython(inc_dirs, extra_opts, out)
+    if target_binding == "cython":
+        run_cython(inc_dirs, extra_opts, out)
+
     return inc_dirs
 
 
-def run(pxds, addons, converters, out, extra_inc_dirs=None, extra_opts=None):
+def run(pxds, addons, converters, out, extra_inc_dirs=None, extra_opts=None, target_binding=None):
     decls, instance_map = parse(pxds, ".")
     return create_wrapper_code(decls, instance_map, addons, converters, out, extra_inc_dirs,
-                               extra_opts)
+                               extra_opts, target_binding=target_binding)
