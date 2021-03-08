@@ -347,7 +347,6 @@ class CodeGeneratorR(CodeGenerator):
         |    R6,
         |    reticulate,
         |    purrr,
-        |    plotrix,
         |    collections
         |Collate: 
         |    'imports.R'
@@ -750,7 +749,7 @@ class CodeGeneratorR(CodeGenerator):
                     r_classname = temp[-1]
             method_code.add("""    else{
                             |           # to create a new R object and set its underlying python object as the one supplied in the constructor.
-                            |           # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct fashion.
+                            |           # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct manner.
                             |           if( length(arg_list)==1 && ( "python.builtin.object" %in% class(arg_list[[1]]) && class_to_wrap(arg_list[[1]]) == "$r_classname" ) )
                             """, locals())
             if deepcopy_for_cons == True:
@@ -1660,7 +1659,6 @@ class CodeGeneratorR(CodeGenerator):
                     |#' @import R6
                     |#' @import purrr
                     |
-                    |listDepth <- NULL
                     """)
         else:
             imports.add("""
@@ -1668,7 +1666,6 @@ class CodeGeneratorR(CodeGenerator):
                     |library(R6)
                     |library(purrr)
                     |library(collections)
-                    |listDepth <- plotrix::listDepth
                     |Pymod <- import("$lib")
                     |npy <- import("numpy", convert = F)
                     |py_builtin <- import_builtins(convert = F)
@@ -1688,7 +1685,6 @@ class CodeGeneratorR(CodeGenerator):
                     |   npy <<- reticulate::import("numpy", convert = F, delay_load = TRUE)
                     |   r_to_py <<- reticulate::r_to_py
                     |   py_builtin <<- reticulate::import_builtins(convert = F)
-                    |   listDepth <<- plotrix::listDepth
                     |}
                     |
                     |# R6 class object conversion to underlying python object.

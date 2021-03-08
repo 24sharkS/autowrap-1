@@ -2396,17 +2396,22 @@ class R_StdVectorConverter(TypeConverterBaseR):
             #         -> deal with recursion
             item = "%s_rec" % argument_var
             # Same case as that of simply an unnested vector of classes to wrap.
+            while(k.base_type == "libcpp_vector"):
+                depth_cnt+=1
+                k, = k.template_args
+
             code = Code().add("""
-                |depth_${arg_num} <- listDepth($argument_var)
-                |$temp_var <- r_to_py(modify_depth($argument_var, depth_$arg_num, function(a) r_to_py(a)))
+                |$temp_var <- r_to_py(modify_depth($argument_var, $depth_cnt, function(a) r_to_py(a)))
                 """, locals())
 
             cleanup_code = Code().add("")
             if cpp_type.topmost_is_ref and not cpp_type.topmost_is_const:
                 cr_ref = True
+                wrapper_class = k.base_type
+                # eval(parse(text = paste0(class_to_wrap(t),"$$","new(t)")))
                 cleanup_code = Code().add("""
                     |$temp_var <- py_to_r($temp_var)
-                    |byref_${arg_num} <- map_depth($temp_var,depth_${arg_num},function(t) eval(parse(text = paste0(class_to_wrap(t),"$$","new(t)"))))
+                    |byref_${arg_num} <- map_depth($temp_var,$depth_cnt,function(t) $wrapper_class$$new(t))
                     """, locals())
 
             return code, "%s" % temp_var, cleanup_code, cr_ref
