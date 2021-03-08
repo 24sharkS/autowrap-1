@@ -336,7 +336,7 @@ class CodeGeneratorR(CodeGenerator):
         |Config/reticulate:
         |  list(
         |    packages = list(
-        |      list(package = "pyopenms", version = "2.5.0", pip = TRUE)
+        |      list(package = "pyopenms", pip = TRUE)
         |    )
         |  )
         |License: GPL-3
