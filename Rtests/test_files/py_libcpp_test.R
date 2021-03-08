@@ -1,21 +1,10 @@
-#' @import reticulate
-#' @import R6
-#' @import purrr
-
-listDepth <- NULL
-Pymod <- NULL
-npy <- NULL
-py_builtin <- NULL
-r_to_py <- NULL
-
-.onLoad <- function(libname, pkgname) {
-   Pymod <<- import("pyopenms", delay_load = TRUE)
-   npy <<- import("numpy", convert = F, delay_load = TRUE)
-   r_to_py <<- reticulate::r_to_py
-   py_builtin <<- import_builtins(convert = F)
-   listDepth <<- plotrix::listDepth
-}
-
+library(reticulate)
+library(R6)
+library(purrr)
+library(collections)
+Pymod <- import("py_libcpp_test")
+npy <- import("numpy", convert = F)
+py_builtin <- import_builtins(convert = F)
 # R6 class object conversion to underlying python object.
 `r_to_py.R6` <- function(i,...){
    tryCatch({
@@ -42,15 +31,6 @@ class_to_wrap <- function(py_ob){
 #'
 #' Documentation is available at:
 #'
-#'
-#' @section Methods:
-#' \code{$new()} create object of ABS_Impl1
-#'
-#' \code{$init_0()}
-#'
-#' \code{$init_1()}
-#'
-#' \code{$get()}
 #'
 #' @name ABS_Impl1
 NULL
@@ -89,13 +69,14 @@ ABS_Impl1 <- R6::R6Class(classname = "ABS_Impl1",cloneable = FALSE,lock_objects 
     #' This method calls one of the below:
     #' * \code{init_0} : void ABS_Impl1().
     #' * \code{init_1} : void ABS_Impl1(int i).
+    #' @param ... See dispatched method signature
     initialize = function(...){
         arg_list = list(...)
         if (length(arg_list)==0) { self$init_0(...) }
         else if ((length(arg_list)==1) && ((is.numeric(arg_list[[1]]) && length(arg_list[[1]]) == 1 && isTRUE(all.equal(arg_list[[1]],as.integer(arg_list[[1]])))))) { self$init_1(...) }
         else{
                # to create a new R object and set its underlying python object as the one supplied in the constructor.
-               # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct fashion.
+               # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct manner.
                if( length(arg_list)==1 && ( "python.builtin.object" %in% class(arg_list[[1]]) && class_to_wrap(arg_list[[1]]) == "ABS_Impl1" ) )
                { private$py_obj <- arg_list[[1]]  }
                else {
@@ -125,15 +106,6 @@ ABS_Impl1$lock_class <- TRUE
 #'
 #' Documentation is available at:
 #'
-#'
-#' @section Methods:
-#' \code{$new()} create object of ABS_Impl2
-#'
-#' \code{$init_0()}
-#'
-#' \code{$init_1()}
-#'
-#' \code{$get()}
 #'
 #' @name ABS_Impl2
 NULL
@@ -172,13 +144,14 @@ ABS_Impl2 <- R6::R6Class(classname = "ABS_Impl2",cloneable = FALSE,lock_objects 
     #' This method calls one of the below:
     #' * \code{init_0} : void ABS_Impl2().
     #' * \code{init_1} : void ABS_Impl2(int i).
+    #' @param ... See dispatched method signature
     initialize = function(...){
         arg_list = list(...)
         if (length(arg_list)==0) { self$init_0(...) }
         else if ((length(arg_list)==1) && ((is.numeric(arg_list[[1]]) && length(arg_list[[1]]) == 1 && isTRUE(all.equal(arg_list[[1]],as.integer(arg_list[[1]])))))) { self$init_1(...) }
         else{
                # to create a new R object and set its underlying python object as the one supplied in the constructor.
-               # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct fashion.
+               # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct manner.
                if( length(arg_list)==1 && ( "python.builtin.object" %in% class(arg_list[[1]]) && class_to_wrap(arg_list[[1]]) == "ABS_Impl2" ) )
                { private$py_obj <- arg_list[[1]]  }
                else {
@@ -208,15 +181,6 @@ ABS_Impl2$lock_class <- TRUE
 #'
 #' Documentation is available at:
 #'
-#'
-#' @section Methods:
-#' \code{$i_}
-#'
-#' \code{$new()} create object of Int
-#'
-#' \code{$init_0()}
-#'
-#' \code{$init_1()}
 #'
 #' @name Int
 NULL
@@ -289,13 +253,14 @@ Int <- R6::R6Class(classname = "Int",cloneable = FALSE,lock_objects = T,
     #' This method calls one of the below:
     #' * \code{init_0} : void Int(int i).
     #' * \code{init_1} : void Int(Int & i).
+    #' @param ... See dispatched method signature
     initialize = function(...){
         arg_list = list(...)
         if ((length(arg_list)==1) && ((is.numeric(arg_list[[1]]) && length(arg_list[[1]]) == 1 && isTRUE(all.equal(arg_list[[1]],as.integer(arg_list[[1]])))))) { self$init_0(...) }
         else if ((length(arg_list)==1) && (is.R6(arg_list[[1]]) && class(arg_list[[1]])[1] == "Int")) { self$init_1(...) }
         else{
                # to create a new R object and set its underlying python object as the one supplied in the constructor.
-               # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct fashion.
+               # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct manner.
                if( length(arg_list)==1 && ( "python.builtin.object" %in% class(arg_list[[1]]) && class_to_wrap(arg_list[[1]]) == "Int" ) )
                { private$py_obj <- arg_list[[1]]  }
                else {
@@ -316,111 +281,6 @@ Int$lock_class <- TRUE
 #'
 #' Documentation is available at:
 #'
-#'
-#' @section Methods:
-#' \code{$integer_vector_ptr}
-#'
-#' \code{$integer_ptr}
-#'
-#' \code{$new()} create object of LibCppTest
-#'
-#' \code{$init_0()}
-#'
-#' \code{$init_1()}
-#'
-#' \code{$gett()}
-#'
-#' \code{$twist()}
-#'
-#' \code{$process()}
-#'
-#' \code{$process2()}
-#'
-#' \code{$process3()}
-#'
-#' \code{$process4()}
-#'
-#' \code{$process5()}
-#'
-#' \code{$process6()}
-#'
-#' \code{$process7()}
-#'
-#' \code{$process8()}
-#'
-#' \code{$process9()}
-#'
-#' \code{$process10()}
-#'
-#' \code{$process11()}
-#'
-#' \code{$process12()}
-#'
-#' \code{$process13()}
-#'
-#' \code{$process14()}
-#'
-#' \code{$process15()}
-#'
-#' \code{$process16()}
-#'
-#' \code{$process17()}
-#'
-#' \code{$process18()}
-#'
-#' \code{$process19()}
-#'
-#' \code{$process20()}
-#'
-#' \code{$process21()}
-#'
-#' \code{$process211()}
-#'
-#' \code{$process212()}
-#'
-#' \code{$process214()}
-#'
-#' \code{$process22()}
-#'
-#' \code{$process23()}
-#'
-#' \code{$process24()}
-#'
-#' \code{$process25()}
-#'
-#' \code{$process26()}
-#'
-#' \code{$process27()}
-#'
-#' \code{$process28()}
-#'
-#' \code{$process29()}
-#'
-#' \code{$process30()}
-#'
-#' \code{$process31()}
-#'
-#' \code{$process32()}
-#'
-#' \code{$process33()}
-#'
-#' \code{$process34()}
-#'
-#' \code{$process35()}
-#'
-#' \code{$process36()}
-#'
-#' \code{$process37()}
-#'
-#' \code{$process38()}
-#'
-#' \code{$process39()}
-#'
-#' \code{$process40()}
-#'
-#' \code{$process40_0()}
-#'
-#' \code{$process40_1()}
 #'
 #' @name LibCppTest
 NULL
@@ -524,13 +384,14 @@ LibCppTest <- R6::R6Class(classname = "LibCppTest",cloneable = FALSE,lock_object
     #' This method calls one of the below:
     #' * \code{init_0} : void LibCppTest().
     #' * \code{init_1} : void LibCppTest(int ii).
+    #' @param ... See dispatched method signature
     initialize = function(...){
         arg_list = list(...)
         if (length(arg_list)==0) { self$init_0(...) }
         else if ((length(arg_list)==1) && ((is.numeric(arg_list[[1]]) && length(arg_list[[1]]) == 1 && isTRUE(all.equal(arg_list[[1]],as.integer(arg_list[[1]])))))) { self$init_1(...) }
         else{
                # to create a new R object and set its underlying python object as the one supplied in the constructor.
-               # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct fashion.
+               # this helps avoid use of set_py_object(), s.t., the user is not able to manipulate the python object in a direct manner.
                if( length(arg_list)==1 && ( "python.builtin.object" %in% class(arg_list[[1]]) && class_to_wrap(arg_list[[1]]) == "LibCppTest" ) )
                { private$py_obj <- arg_list[[1]]  }
                else {
@@ -1142,8 +1003,7 @@ LibCppTest <- R6::R6Class(classname = "LibCppTest",cloneable = FALSE,lock_object
     process26 = function(in_){
     
         if(!(is.vector(in_) && all(sapply(in_,function(elemt_rec) is.vector(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec) is.R6(elemt_rec_rec) && class(elemt_rec_rec)[1] == "Int")))))){ stop("arg in_ wrong type") }
-        depth_0 <- listDepth(in_)
-        v0 <- r_to_py(modify_depth(in_, depth_0, function(a) r_to_py(a)))
+        v0 <- r_to_py(modify_depth(in_, 2, function(a) r_to_py(a)))
         py_ans = private$py_obj$process26(v0)
         
         r_ans = py_ans
@@ -1156,8 +1016,7 @@ LibCppTest <- R6::R6Class(classname = "LibCppTest",cloneable = FALSE,lock_object
     process27 = function(in_){
     
         if(!(is.vector(in_) && all(sapply(in_,function(elemt_rec) is.vector(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec) is.vector(elemt_rec_rec) && all(sapply(elemt_rec_rec,function(elemt_rec_rec_rec) is.R6(elemt_rec_rec_rec) && class(elemt_rec_rec_rec)[1] == "Int")))))))){ stop("arg in_ wrong type") }
-        depth_0 <- listDepth(in_)
-        v0 <- r_to_py(modify_depth(in_, depth_0, function(a) r_to_py(a)))
+        v0 <- r_to_py(modify_depth(in_, 3, function(a) r_to_py(a)))
         py_ans = private$py_obj$process27(v0)
         
         r_ans = py_ans
@@ -1170,8 +1029,7 @@ LibCppTest <- R6::R6Class(classname = "LibCppTest",cloneable = FALSE,lock_object
     process28 = function(in_){
     
         if(!(is.vector(in_) && all(sapply(in_,function(elemt_rec) is.vector(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec) is.vector(elemt_rec_rec) && all(sapply(elemt_rec_rec,function(elemt_rec_rec_rec) is.vector(elemt_rec_rec_rec) && all(sapply(elemt_rec_rec_rec,function(elemt_rec_rec_rec_rec) is.R6(elemt_rec_rec_rec_rec) && class(elemt_rec_rec_rec_rec)[1] == "Int")))))))))){ stop("arg in_ wrong type") }
-        depth_0 <- listDepth(in_)
-        v0 <- r_to_py(modify_depth(in_, depth_0, function(a) r_to_py(a)))
+        v0 <- r_to_py(modify_depth(in_, 4, function(a) r_to_py(a)))
         py_ans = private$py_obj$process28(v0)
         
         r_ans = py_ans
@@ -1184,11 +1042,10 @@ LibCppTest <- R6::R6Class(classname = "LibCppTest",cloneable = FALSE,lock_object
     process29 = function(in_){
     
         if(!(is.vector(in_) && all(sapply(in_,function(elemt_rec) is.vector(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec) is.R6(elemt_rec_rec) && class(elemt_rec_rec)[1] == "Int")))))){ stop("arg in_ wrong type") }
-        depth_0 <- listDepth(in_)
-        v0 <- r_to_py(modify_depth(in_, depth_0, function(a) r_to_py(a)))
+        v0 <- r_to_py(modify_depth(in_, 2, function(a) r_to_py(a)))
         private$py_obj$process29(v0)
         v0 <- py_to_r(v0)
-        byref_0 <- map_depth(v0,depth_0,function(t) eval(parse(text = paste0(class_to_wrap(t),"$","new(t)"))))
+        byref_0 <- map_depth(v0,2,function(t) Int$new(t))
     
         tryCatch({
         eval.parent(substitute(in_ <- byref_0))
@@ -1204,11 +1061,10 @@ LibCppTest <- R6::R6Class(classname = "LibCppTest",cloneable = FALSE,lock_object
     process30 = function(in_){
     
         if(!(is.vector(in_) && all(sapply(in_,function(elemt_rec) is.vector(elemt_rec) && all(sapply(elemt_rec,function(elemt_rec_rec) is.vector(elemt_rec_rec) && all(sapply(elemt_rec_rec,function(elemt_rec_rec_rec) is.vector(elemt_rec_rec_rec) && all(sapply(elemt_rec_rec_rec,function(elemt_rec_rec_rec_rec) is.R6(elemt_rec_rec_rec_rec) && class(elemt_rec_rec_rec_rec)[1] == "Int")))))))))){ stop("arg in_ wrong type") }
-        depth_0 <- listDepth(in_)
-        v0 <- r_to_py(modify_depth(in_, depth_0, function(a) r_to_py(a)))
+        v0 <- r_to_py(modify_depth(in_, 4, function(a) r_to_py(a)))
         private$py_obj$process30(v0)
         v0 <- py_to_r(v0)
-        byref_0 <- map_depth(v0,depth_0,function(t) eval(parse(text = paste0(class_to_wrap(t),"$","new(t)"))))
+        byref_0 <- map_depth(v0,4,function(t) Int$new(t))
     
         tryCatch({
         eval.parent(substitute(in_ <- byref_0))
@@ -1356,6 +1212,7 @@ LibCppTest <- R6::R6Class(classname = "LibCppTest",cloneable = FALSE,lock_object
     #' This method calls one of the below:
     #' * \code{process40_0} : int process40(ABS_Impl1 * in_).
     #' * \code{process40_1} : int process40(ABS_Impl2 * in_).
+    #' @param ... See dispatched method signature
     process40 = function(...){
         arg_list = list(...)
         if ((length(arg_list)==1) && (is.R6(arg_list[[1]]) && class(arg_list[[1]])[1] == "ABS_Impl1")) { self$process40_0(...) }
